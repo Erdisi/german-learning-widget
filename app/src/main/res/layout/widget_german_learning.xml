@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="12dp"
+    android:background="@drawable/widget_background"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Bookmark/Save Button -->
+    <ImageButton
+        android:id="@+id/widget_save_button"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_bookmark_border"
+        android:contentDescription="Save sentence"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- Main Content Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_toStartOf="@id/widget_save_button"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_german_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Guten Tag!"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/widget_translation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Good day!"
+            android:textSize="14sp"
+            android:textColor="#E0E0E0"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/widget_topic"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Greetings"
+            android:textSize="12sp"
+            android:textColor="#BDBDBD"
+            android:background="@drawable/topic_background"
+            android:padding="4dp"
+            android:layout_gravity="center_horizontal" />
+
+    </LinearLayout>
+
+</RelativeLayout> 
