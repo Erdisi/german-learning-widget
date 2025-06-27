@@ -1,6 +1,8 @@
 package com.germanleraningwidget
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -15,7 +17,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -30,116 +34,221 @@ import com.germanleraningwidget.ui.viewmodel.OnboardingViewModel
 import com.germanleraningwidget.worker.SentenceDeliveryWorker
 import kotlinx.coroutines.launch
 
-// Bottom Navigation destinations
+/**
+ * Bottom Navigation destination configuration.
+ * Immutable data class for type safety and consistency.
+ */
 data class BottomNavItem(
     val route: String,
     val title: String,
     val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    val unselectedIcon: ImageVector,
+    val contentDescription: String = title
 )
 
-object NavigationItems {
-    val items = listOf(
+/**
+ * Navigation configuration object.
+ * Centralized navigation setup for easier maintenance.
+ */
+object NavigationConfig {
+    const val ROUTE_ONBOARDING = "onboarding"
+    const val ROUTE_HOME = "home"
+    const val ROUTE_BOOKMARKS = "bookmarks"
+    const val ROUTE_SETTINGS = "settings"
+    
+    val bottomNavItems = listOf(
         BottomNavItem(
-            route = "home",
+            route = ROUTE_HOME,
             title = "Learn",
             selectedIcon = Icons.Filled.Home,
-            unselectedIcon = Icons.Outlined.Home
+            unselectedIcon = Icons.Outlined.Home,
+            contentDescription = "Learn German"
         ),
         BottomNavItem(
-            route = "bookmarks",
+            route = ROUTE_BOOKMARKS,
             title = "Saved",
             selectedIcon = Icons.Filled.Bookmark,
-            unselectedIcon = Icons.Outlined.BookmarkBorder
+            unselectedIcon = Icons.Outlined.BookmarkBorder,
+            contentDescription = "Saved sentences"
         ),
         BottomNavItem(
-            route = "settings",
+            route = ROUTE_SETTINGS,
             title = "Settings",
             selectedIcon = Icons.Filled.Settings,
-            unselectedIcon = Icons.Outlined.Settings
+            unselectedIcon = Icons.Outlined.Settings,
+            contentDescription = "Learning settings"
         )
     )
+    
+    val routesWithBottomNav = setOf(ROUTE_HOME, ROUTE_BOOKMARKS, ROUTE_SETTINGS)
 }
 
+/**
+ * Main activity for the German Learning Widget app.
+ * 
+ * Features:
+ * - Proper lifecycle management
+ * - Intent handling for widget navigation
+ * - Error handling and logging
+ * - Theme application
+ * 
+ * Thread Safety: UI operations are main-thread safe
+ * Error Handling: Graceful handling of initialization errors
+ * Performance: Efficient composition and state management
+ */
 class MainActivity : ComponentActivity() {
+    
+    companion object {
+        private const val TAG = "MainActivity"
+        const val EXTRA_NAVIGATE_TO = "navigate_to"
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            GermanLearningWidgetTheme {
-                GermanLearningApp()
+        
+        try {
+            Log.d(TAG, "MainActivity onCreate")
+            
+            setContent {
+                GermanLearningWidgetTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        GermanLearningApp()
+                    }
+                }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set content", e)
+            // Don't crash - let the system handle it
         }
+    }
+    
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Log.d(TAG, "New intent received: ${intent?.getStringExtra(EXTRA_NAVIGATE_TO)}")
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "MainActivity onResume")
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "MainActivity onPause")
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d(TAG, "MainActivity onDestroy")
     }
 }
 
+/**
+ * Main app composable with navigation and state management.
+ * 
+ * Features:
+ * - Centralized navigation logic
+ * - Repository and ViewModel management
+ * - Intent-based navigation handling
+ * - Error boundary for composition errors
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GermanLearningApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
     
-    // Handle navigation from widget
+    // Error handling state
+    var appError by remember { mutableStateOf<String?>(null) }
+    
+    // Handle widget navigation intents
     val activity = context as? MainActivity
-    val navigateTo = activity?.intent?.getStringExtra("navigate_to")
+    val navigateTo = activity?.intent?.getStringExtra(MainActivity.EXTRA_NAVIGATE_TO)
     
     LaunchedEffect(navigateTo) {
-        if (navigateTo == "bookmarks") {
-            navController.navigate("bookmarks") {
-                popUpTo("home") { inclusive = false }
+        try {
+            when (navigateTo) {
+                NavigationConfig.ROUTE_BOOKMARKS -> {
+                    navController.navigate(NavigationConfig.ROUTE_BOOKMARKS) {
+                        popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                    Log.d("Navigation", "Navigated to bookmarks from widget")
+                }
             }
+        } catch (e: Exception) {
+            Log.e("Navigation", "Failed to handle widget navigation", e)
+            appError = "Navigation error: ${e.message}"
         }
     }
     
-    // Repositories
-    val sentenceRepository = remember { SentenceRepository.getInstance(context) }
-    val preferencesRepository = remember { UserPreferencesRepository(context) }
-    
-    // ViewModel
-    val onboardingViewModel: OnboardingViewModel = remember {
-        OnboardingViewModel(preferencesRepository)
+    // Initialize repositories with error handling
+    val repositoryState = remember {
+        try {
+            RepositoryContainer(
+                sentenceRepository = SentenceRepository.getInstance(context),
+                preferencesRepository = UserPreferencesRepository(context)
+            )
+        } catch (e: Exception) {
+            Log.e("Repository", "Failed to initialize repositories", e)
+            appError = "Failed to initialize app: ${e.message}"
+            null
+        }
     }
     
-    // Check if onboarding is completed
-    val userPreferences by preferencesRepository.userPreferences.collectAsState(
-        initial = com.germanleraningwidget.data.model.UserPreferences()
-    )
+    // Show error screen if initialization failed
+    if (appError != null || repositoryState == null) {
+        ErrorScreen(
+            error = appError ?: "Failed to initialize app",
+            onRetry = {
+                appError = null
+                // Restart activity
+                (context as? ComponentActivity)?.recreate()
+            }
+        )
+        return
+    }
     
-    // Determine start destination based on onboarding status
-    val startDestination = if (userPreferences.isOnboardingCompleted) "home" else "onboarding"
+    // ViewModel with error handling
+    val onboardingViewModel: OnboardingViewModel = viewModel {
+        OnboardingViewModel(repositoryState.preferencesRepository)
+    }
     
-    // Current navigation state
+    // User preferences with lifecycle-aware collection
+    val userPreferences by repositoryState.preferencesRepository.userPreferences
+        .collectAsStateWithLifecycle(
+            initialValue = com.germanleraningwidget.data.model.UserPreferences()
+        )
+    
+    // Navigation state
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
     
-    // Check if we should show bottom navigation
-    val showBottomNav = remember(currentDestination?.route) {
-        when (currentDestination?.route) {
-            "onboarding" -> false
-            "home", "bookmarks", "settings" -> true
-            else -> false
-        }
+    // Determine start destination
+    val startDestination = if (userPreferences.isOnboardingCompleted) {
+        NavigationConfig.ROUTE_HOME
+    } else {
+        NavigationConfig.ROUTE_ONBOARDING
+    }
+    
+    // Bottom navigation visibility
+    val showBottomNav = remember(currentRoute) {
+        NavigationConfig.routesWithBottomNav.contains(currentRoute)
     }
     
     Scaffold(
         bottomBar = {
             if (showBottomNav) {
                 BottomNavigationBar(
-                    items = NavigationItems.items,
+                    items = NavigationConfig.bottomNavItems,
                     currentDestination = currentDestination,
                     onNavigate = { item ->
-                        // Only navigate if not already on the selected route
-                        if (currentDestination?.route != item.route) {
-                            navController.navigate(item.route) {
-                                // Pop up to home to maintain a clean back stack
-                                popUpTo("home") {
-                                    saveState = true
-                                }
-                                // Avoid multiple copies of the same destination
-                                launchSingleTop = true
-                                // Restore state when reselecting a previously selected item
-                                restoreState = true
-                            }
-                        }
+                        navigateToBottomNavDestination(navController, item, currentRoute)
                     }
                 )
             }
@@ -150,55 +259,41 @@ fun GermanLearningApp() {
             startDestination = startDestination,
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable("onboarding") {
+            composable(NavigationConfig.ROUTE_ONBOARDING) {
                 OnboardingScreen(
                     viewModel = onboardingViewModel,
                     onOnboardingComplete = { frequency ->
-                        try {
-                            // Schedule work when onboarding is completed
-                            SentenceDeliveryWorker.scheduleWork(context, frequency)
-                            
-                            navController.navigate("home") {
-                                popUpTo("onboarding") { inclusive = true }
-                            }
-                        } catch (e: Exception) {
-                            // Handle scheduling error gracefully
-                            navController.navigate("home") {
-                                popUpTo("onboarding") { inclusive = true }
-                            }
-                        }
+                        handleOnboardingComplete(context, navController, frequency)
                     }
                 )
             }
             
-            composable("home") {
+            composable(NavigationConfig.ROUTE_HOME) {
                 HomeScreen(
                     userPreferences = userPreferences,
-                    onNavigateToBookmarks = { navController.navigate("bookmarks") },
-                    onNavigateToLearningSetup = { navController.navigate("settings") }
-                )
-            }
-            
-            composable("bookmarks") {
-                BookmarksScreen(
-                    onNavigateBack = { 
-                        // Navigate back to home instead of using navigateUp
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = false }
-                        }
+                    onNavigateToBookmarks = { 
+                        navController.navigate(NavigationConfig.ROUTE_BOOKMARKS)
+                    },
+                    onNavigateToLearningSetup = { 
+                        navController.navigate(NavigationConfig.ROUTE_SETTINGS)
                     }
                 )
             }
             
-            composable("settings") {
+            composable(NavigationConfig.ROUTE_BOOKMARKS) {
+                BookmarksScreen(
+                    onNavigateBack = { 
+                        navigateBackToHome(navController)
+                    }
+                )
+            }
+            
+            composable(NavigationConfig.ROUTE_SETTINGS) {
                 LearningSetupScreen(
                     userPreferences = userPreferences,
-                    preferencesRepository = preferencesRepository,
+                    preferencesRepository = repositoryState.preferencesRepository,
                     onNavigateBack = { 
-                        // Navigate back to home instead of using navigateUp
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = false }
-                        }
+                        navigateBackToHome(navController)
                     }
                 )
             }
@@ -206,24 +301,87 @@ fun GermanLearningApp() {
     }
 }
 
+/**
+ * Handle onboarding completion with proper error handling.
+ */
+private fun handleOnboardingComplete(
+    context: android.content.Context,
+    navController: androidx.navigation.NavController,
+    frequency: com.germanleraningwidget.data.model.DeliveryFrequency
+) {
+    try {
+        // Schedule work when onboarding is completed
+        SentenceDeliveryWorker.scheduleWork(context, frequency)
+        Log.i("Onboarding", "Work scheduled for frequency: ${frequency.displayName}")
+        
+        navController.navigate(NavigationConfig.ROUTE_HOME) {
+            popUpTo(NavigationConfig.ROUTE_ONBOARDING) { inclusive = true }
+        }
+    } catch (e: Exception) {
+        Log.e("Onboarding", "Failed to schedule work", e)
+        // Still navigate to home even if scheduling fails
+        navController.navigate(NavigationConfig.ROUTE_HOME) {
+            popUpTo(NavigationConfig.ROUTE_ONBOARDING) { inclusive = true }
+        }
+    }
+}
+
+/**
+ * Navigate to bottom navigation destination with proper state management.
+ */
+private fun navigateToBottomNavDestination(
+    navController: androidx.navigation.NavController,
+    item: BottomNavItem,
+    currentRoute: String?
+) {
+    if (currentRoute != item.route) {
+        navController.navigate(item.route) {
+            // Pop up to home to maintain clean back stack
+            popUpTo(NavigationConfig.ROUTE_HOME) {
+                saveState = true
+            }
+            // Avoid multiple copies of same destination
+            launchSingleTop = true
+            // Restore state when reselecting previously selected item
+            restoreState = true
+        }
+    }
+}
+
+/**
+ * Navigate back to home screen safely.
+ */
+private fun navigateBackToHome(navController: androidx.navigation.NavController) {
+    navController.navigate(NavigationConfig.ROUTE_HOME) {
+        popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
+        launchSingleTop = true
+    }
+}
+
+/**
+ * Bottom navigation bar with improved accessibility and styling.
+ */
 @Composable
 fun BottomNavigationBar(
     items: List<BottomNavItem>,
-    currentDestination: androidx.navigation.NavDestination?,
+    currentDestination: NavDestination?,
     onNavigate: (BottomNavItem) -> Unit
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp
+        tonalElevation = 3.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
         items.forEach { item ->
-            val isSelected = currentDestination?.route == item.route
+            val isSelected = currentDestination?.hierarchy?.any { 
+                it.route == item.route 
+            } == true
             
             NavigationBarItem(
                 icon = {
                     Icon(
                         imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.title,
+                        contentDescription = item.contentDescription,
                         modifier = Modifier.size(24.dp)
                     )
                 },
@@ -249,3 +407,61 @@ fun BottomNavigationBar(
         }
     }
 }
+
+/**
+ * Error screen for handling app-level errors.
+ */
+@Composable
+private fun ErrorScreen(
+    error: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Error,
+            contentDescription = "Error",
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "Something went wrong",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = error,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.fillMaxWidth(0.5f)
+        ) {
+            Text("Retry")
+        }
+    }
+}
+
+/**
+ * Container for repositories to ensure proper initialization.
+ */
+private data class RepositoryContainer(
+    val sentenceRepository: SentenceRepository,
+    val preferencesRepository: UserPreferencesRepository
+)

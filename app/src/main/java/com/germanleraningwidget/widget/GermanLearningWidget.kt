@@ -87,6 +87,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_german_text, it.germanText)
                     views.setTextViewText(R.id.widget_translation, it.translation)
                     views.setTextViewText(R.id.widget_topic, it.topic)
+                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
                     
                     // Set save button state
                     val isSaved = sentenceRepository.isSentenceSaved(it.id)
@@ -117,6 +118,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_german_text, "Guten Tag!")
                 views.setTextViewText(R.id.widget_translation, "Good day!")
                 views.setTextViewText(R.id.widget_topic, "Greetings")
+                views.setTextViewText(R.id.widget_level_indicator, "A1")
                 
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             }
@@ -167,6 +169,19 @@ class GermanLearningWidget : AppWidgetProvider() {
                         views.setTextViewText(R.id.widget_translation, translation)
                         views.setTextViewText(R.id.widget_topic, topic ?: "")
                         
+                        // Set level indicator (get from preferences)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val preferencesRepository = UserPreferencesRepository(context)
+                                val preferences = preferencesRepository.userPreferences.first()
+                                views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                                appWidgetManager.updateAppWidget(appWidgetId, views)
+                            } catch (e: Exception) {
+                                views.setTextViewText(R.id.widget_level_indicator, "A1")
+                                appWidgetManager.updateAppWidget(appWidgetId, views)
+                            }
+                        }
+                        
                         // Update save button state if we have a sentence ID
                         if (sentenceId != -1L) {
                             CoroutineScope(Dispatchers.IO).launch {
@@ -193,13 +208,10 @@ class GermanLearningWidget : AppWidgetProvider() {
                                     )
                                     views.setOnClickPendingIntent(R.id.widget_save_button, savePendingIntent)
                                     
-                                    appWidgetManager.updateAppWidget(appWidgetId, views)
                                 } catch (e: Exception) {
                                     // Handle error silently
                                 }
                             }
-                        } else {
-                            appWidgetManager.updateAppWidget(appWidgetId, views)
                         }
                     }
                 }
