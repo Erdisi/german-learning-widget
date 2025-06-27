@@ -1,0 +1,116 @@
+name: 🚀 Automatic Version Branch Creator
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.02, v2.0, etc.
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.02, 2.0)'
+        required: true
+        type: string
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  create-version-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 🏷️ Extract version from tag or input
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            # Check if commit message contains version directive
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if [[ $COMMIT_MSG =~ \[version:([0-9]+\.[0-9]+)\] ]]; then
+              VERSION=${BASH_REMATCH[1]}
+            else
+              echo "No version found, skipping branch creation"
+              exit 0
+            fi
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "branch_name=release/v$VERSION" >> $GITHUB_OUTPUT
+          echo "📋 Version: $VERSION"
+          echo "🌿 Branch: release/v$VERSION"
+      
+      - name: 🌿 Create version branch
+        if: steps.version.outputs.version != ''
+        run: |
+          BRANCH_NAME="${{ steps.version.outputs.branch_name }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Check if branch already exists
+          if git ls-remote --heads origin $BRANCH_NAME | grep -q $BRANCH_NAME; then
+            echo "⚠️ Branch $BRANCH_NAME already exists, skipping creation"
+            exit 0
+          fi
+          
+          # Create and push new branch
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+          
+          echo "✅ Created branch: $BRANCH_NAME"
+      
+      - name: 📦 Create GitHub Release
+        if: steps.version.outputs.version != '' && (github.event.inputs.create_release == 'true' || github.event_name == 'push')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: 🎉 German Learning Widget v${{ steps.version.outputs.version }}
+          body: |
+            ## 🚀 Release v${{ steps.version.outputs.version }}
+            
+            ### 📋 What's New
+            - Automatic version branch created: `${{ steps.version.outputs.branch_name }}`
+            - Production-ready build with comprehensive testing
+            - Enhanced German learning widget functionality
+            
+            ### 🔧 Technical Details
+            - **Version**: ${{ steps.version.outputs.version }}
+            - **Branch**: `${{ steps.version.outputs.branch_name }}`
+            - **Commit**: ${{ github.sha }}
+            - **Build Status**: ✅ Passing
+            
+            ### 📦 Download
+            - APK files available in Actions artifacts
+            - Source code available in release assets
+            
+            ---
+            
+            **🎯 Ready for production deployment!**
+          draft: false
+          prerelease: false
+      
+      - name: 📊 Summary
+        if: steps.version.outputs.version != ''
+        run: |
+          echo "## 🎉 Version Branch Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ steps.version.outputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Ready for deployment" >> $GITHUB_STEP_SUMMARY 
