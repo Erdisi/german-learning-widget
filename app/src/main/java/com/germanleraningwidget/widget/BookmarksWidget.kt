@@ -57,7 +57,8 @@ class BookmarksWidget : AppWidgetProvider() {
         
         // Create intent to open the app when widget is tapped
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            putExtra("navigate_to", "bookmarks")
+            putExtra(MainActivity.EXTRA_NAVIGATE_TO, "bookmarks")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             context,

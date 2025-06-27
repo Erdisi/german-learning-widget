@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- Background gradient -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#E3F2FD"
+                android:centerColor="#F8F9FA"
+                android:endColor="#FFFFFF"
+                android:angle="45"
+                android:type="linear" />
+        </shape>
+    </item>
+    
+    <!-- App icon in center -->
+    <item
+        android:gravity="center"
+        android:width="120dp"
+        android:height="120dp">
+        <bitmap
+            android:src="@mipmap/ic_launcher"
+            android:gravity="center" />
+    </item>
+    
+    <!-- Subtle shadow effect -->
+    <item
+        android:gravity="center"
+        android:width="130dp"
+        android:height="130dp">
+        <shape android:shape="oval">
+            <solid android:color="#10000000" />
+        </shape>
+    </item>
+    
+</layer-list> 

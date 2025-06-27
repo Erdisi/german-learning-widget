@@ -99,6 +99,9 @@ dependencies {
     // Material Icons
     implementation("androidx.compose.material:material-icons-extended")
     
+    // Splash Screen
+    implementation("androidx.core:core-splashscreen:1.0.1")
+    
     // Core library desugaring for API level compatibility
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     

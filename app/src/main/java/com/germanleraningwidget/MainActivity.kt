@@ -5,6 +5,11 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -12,11 +17,14 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
@@ -104,6 +112,9 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install splash screen for smooth launch experience
+        installSplashScreen()
+        
         super.onCreate(savedInstanceState)
         
         try {
@@ -115,7 +126,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        GermanLearningApp()
+                        AnimatedApp()
                     }
                 }
             }
@@ -148,6 +159,46 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
+ * Animated wrapper for the main app with launch animations.
+ */
+@Composable
+fun AnimatedApp() {
+    var isVisible by remember { mutableStateOf(false) }
+    
+    // Launch animation
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+    
+    // Animated scale and fade for smooth app launch
+    val scale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.9f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "app_scale"
+    )
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 500,
+            easing = FastOutSlowInEasing
+        ),
+        label = "app_alpha"
+    )
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .scale(scale)
+    ) {
+        GermanLearningApp(alpha = alpha)
+    }
+}
+
+/**
  * Main app composable with navigation and state management.
  * 
  * Features:
@@ -155,10 +206,11 @@ class MainActivity : ComponentActivity() {
  * - Repository and ViewModel management
  * - Intent-based navigation handling
  * - Error boundary for composition errors
+ * - Enhanced animations for smooth user experience
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GermanLearningApp() {
+fun GermanLearningApp(alpha: Float = 1f) {
     val navController = rememberNavController()
     val context = LocalContext.current
     
@@ -172,12 +224,19 @@ fun GermanLearningApp() {
     LaunchedEffect(navigateTo) {
         try {
             when (navigateTo) {
-                NavigationConfig.ROUTE_BOOKMARKS -> {
+                "bookmarks" -> {
                     navController.navigate(NavigationConfig.ROUTE_BOOKMARKS) {
                         popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
                         launchSingleTop = true
                     }
                     Log.d("Navigation", "Navigated to bookmarks from widget")
+                }
+                "home" -> {
+                    navController.navigate(NavigationConfig.ROUTE_HOME) {
+                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                    Log.d("Navigation", "Navigated to home from widget")
                 }
             }
         } catch (e: Exception) {
@@ -242,6 +301,7 @@ fun GermanLearningApp() {
     }
     
     Scaffold(
+        modifier = Modifier.graphicsLayer { this.alpha = alpha },
         bottomBar = {
             if (showBottomNav) {
                 BottomNavigationBar(
@@ -257,7 +317,31 @@ fun GermanLearningApp() {
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(300))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(300))
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(300))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = tween(300))
+            }
         ) {
             composable(NavigationConfig.ROUTE_ONBOARDING) {
                 OnboardingScreen(

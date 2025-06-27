@@ -58,8 +58,11 @@ class GermanLearningWidget : AppWidgetProvider() {
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
         
-        // Create intent to open the app when widget is tapped
-        val intent = Intent(context, MainActivity::class.java)
+        // Create intent to open the app when widget is tapped (goes to home)
+        val intent = Intent(context, MainActivity::class.java).apply {
+            putExtra(MainActivity.EXTRA_NAVIGATE_TO, "home")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,
@@ -154,8 +157,11 @@ class GermanLearningWidget : AppWidgetProvider() {
                     for (appWidgetId in appWidgetIds) {
                         val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
                         
-                        // Create intent to open the app when widget is tapped
-                        val openAppIntent = Intent(context, MainActivity::class.java)
+                        // Create intent to open the app when widget is tapped (goes to home)
+                        val openAppIntent = Intent(context, MainActivity::class.java).apply {
+                            putExtra(MainActivity.EXTRA_NAVIGATE_TO, "home")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
                         val pendingIntent = PendingIntent.getActivity(
                             context,
                             0,
