@@ -1,131 +1,162 @@
-# German Learning Widget
+# German Learning Widget 🇩🇪
 
-A **standalone Android app** for learning German with an interactive home screen widget that delivers German sentences throughout the day.
+A modern Android app that helps you learn German through interactive home screen widgets and personalized learning sessions.
 
-## ✨ Features
+[![Android](https://img.shields.io/badge/Platform-Android-green.svg)](https://android.com)
+[![Kotlin](https://img.shields.io/badge/Language-Kotlin-blue.svg)](https://kotlinlang.org)
+[![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg)](https://android-arsenal.com/api?level=24)
+[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4.svg)](https://developer.android.com/jetpack/compose)
 
-- **📱 Native Android App**: Built with Jetpack Compose
-- **🏠 Home Screen Widget**: Learn German without opening the app
-- **📚 Progressive Learning**: Supports A1, A2, B1, B2, C1, C2 levels
-- **🔖 Bookmarks**: Save your favorite sentences
-- **⚙️ Customizable**: Choose topics and delivery frequency
-- **📱 Offline-First**: No internet connection required
-- **🎯 Smart Delivery**: Background notifications at your preferred times
+## 📱 Features
 
-## 🏗️ Architecture
+### 🏠 Home Screen Widget
+- **Interactive German Learning Widget** that displays German sentences with translations
+- **Bookmark System** - Save your favorite sentences directly from the widget
+- **Smart Content Delivery** - New sentences delivered based on your learning schedule
+- **Beautiful Material Design 3** styling with adaptive colors
 
-**100% Local & Offline:**
-- **Local Data**: Hardcoded German sentences with translations
-- **DataStore**: Local preferences and bookmarks storage
-- **WorkManager**: Background sentence delivery
-- **No Backend Required**: Self-contained Android app
+### 🎯 Personalized Learning
+- **Learning Level Selection** - Choose from A1 (Beginner) to C2 (Proficient)
+- **Topic Customization** - Select from various topics like Greetings, Travel, Food, Business, etc.
+- **Flexible Scheduling** - Delivery frequency from every 30 minutes to daily
+- **Native Language Support** - Currently supports English speakers learning German
+
+### 📚 Learning Management
+- **Bookmarks Screen** - Review all your saved sentences in one place
+- **Progress Tracking** - Keep track of your learning journey
+- **Smart Recommendations** - Content tailored to your level and interests
+
+### 🔧 Technical Features
+- **Offline-First** - Works without internet connection
+- **Background Sync** - Automatic content updates using WorkManager
+- **Data Persistence** - Settings and bookmarks saved locally with DataStore
+- **Modern Architecture** - MVVM pattern with Repository design
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Android Studio Arctic Fox or newer
-- Android SDK 24+ (Android 7.0)
-- Kotlin 1.8+
+- Android Studio Arctic Fox (2020.3.1) or newer
+- Android SDK API 24+ (Android 7.0)
+- Kotlin 1.8.0+
 
 ### Installation
 
-1. **Clone the repository:**
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/german-learning-widget.git
+   cd german-learning-widget
+   ```
+
+2. **Open in Android Studio**
+   - Open Android Studio
+   - Select "Open an existing Android Studio project"
+   - Navigate to the cloned directory and select it
+
+3. **Build and Run**
+   ```bash
+   ./gradlew assembleDebug
+   ```
+   Or use Android Studio's build button
+
+4. **Add Widget to Home Screen**
+   - Long press on your home screen
+   - Select "Widgets"
+   - Find "German Learning Widget"
+   - Drag it to your desired location
+
+## 🏗️ Architecture
+
+The app follows **MVVM (Model-View-ViewModel)** architecture with the following key components:
+
+### 📁 Project Structure
+```
+app/src/main/java/com/germanleraningwidget/
+├── data/
+│   ├── model/           # Data models (GermanSentence, UserPreferences)
+│   └── repository/      # Data access layer
+├── ui/
+│   ├── components/      # Reusable UI components
+│   ├── screen/          # App screens (Home, Bookmarks, Setup)
+│   ├── theme/           # Material Design 3 theming
+│   └── viewmodel/       # ViewModels for state management
+├── widget/              # Home screen widget implementation
+└── worker/              # Background work scheduling
+```
+
+### 🔧 Key Technologies
+- **Jetpack Compose** - Modern declarative UI toolkit
+- **DataStore** - Modern data storage solution
+- **WorkManager** - Background task scheduling
+- **Coroutines** - Asynchronous programming
+- **StateFlow** - Reactive state management
+- **Material Design 3** - Latest design system
+
+## 📖 Usage
+
+### First Time Setup
+1. Open the app and complete the onboarding process
+2. Select your German learning level (A1-C2)
+3. Choose your preferred topics
+4. Set your learning frequency
+5. Add the widget to your home screen
+
+### Using the Widget
+- **View Sentences** - New German sentences appear based on your schedule
+- **Bookmark** - Tap the bookmark icon to save sentences
+- **Open App** - Tap the widget to open the main app
+
+### Managing Bookmarks
+- Navigate to the "Saved Sentences" screen in the app
+- View all your bookmarked sentences
+- Remove bookmarks by tapping the bookmark icon
+
+## 🛠️ Development
+
+### Building
 ```bash
-git clone https://github.com/yourusername/german-learning-widget.git
-cd german-learning-widget
-```
+# Debug build
+./gradlew assembleDebug
 
-2. **Open in Android Studio:**
-   - Launch Android Studio
-   - Select "Open an existing project"
-   - Navigate to the project folder
-
-3. **Build and Run:**
-   - Wait for Gradle sync to complete
-   - Click the Run button or press `Shift + F10`
-
-### Adding the Widget
-
-1. Long-press on your home screen
-2. Select "Widgets"
-3. Find "German Learning Widget"
-4. Drag to your desired location
-5. Configure your learning preferences
-
-## 📊 Sample Content
-
-The app includes 15+ sample German sentences across different levels:
-- **A1 Level**: Basic greetings and introductions
-- **A2 Level**: Daily conversations, food, weather
-- **B1 Level**: Work, travel, detailed conversations
-
-Topics include: Greetings, Introductions, Food, Weather, Travel, Work, Daily Life, Language
-
-## 🔧 Development
-
-### Project Structure
-```
-app/
-├── src/main/java/com/germanleraningwidget/
-│   ├── data/
-│   │   ├── model/          # Data models (GermanSentence, UserPreferences)
-│   │   └── repository/     # Local data management
-│   ├── ui/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── screen/         # App screens (Home, Bookmarks, Settings)
-│   │   ├── theme/          # Material Design theme
-│   │   └── viewmodel/      # State management
-│   ├── widget/             # Home screen widget
-│   └── worker/             # Background tasks
-```
-
-### Key Technologies
-- **Jetpack Compose**: Modern UI toolkit
-- **Navigation Compose**: Screen navigation
-- **DataStore**: Local preferences storage
-- **WorkManager**: Background task scheduling
-- **Material Design 3**: UI components and theming
-
-### Building Release APK
-```bash
+# Release build
 ./gradlew assembleRelease
+
+# Run tests
+./gradlew test
 ```
 
-## 📱 App Screenshots
-
-- **Onboarding**: Select your German level and learning preferences
-- **Home Screen**: View daily sentences and track progress
-- **Bookmarks**: Save and review your favorite sentences
-- **Widget**: Quick German learning from your home screen
-
-## 🎯 Roadmap
-
-- [ ] Add more sentence categories (business, travel, etc.)
-- [ ] Implement spaced repetition algorithm
-- [ ] Add pronunciation guides
-- [ ] Support for other languages
-- [ ] Advanced progress tracking
-- [ ] Dark mode theme improvements
+### Code Style
+This project follows [Kotlin coding conventions](https://kotlinlang.org/docs/coding-conventions.html) and uses:
+- **ktlint** for code formatting
+- **Android lint** for static analysis
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🙏 Acknowledgments
 
-If you encounter any issues:
-1. Check the [Issues](https://github.com/yourusername/german-learning-widget/issues) page
-2. Create a new issue with detailed information
-3. Include your Android version and device model
+- German sentence data curated for language learning
+- Material Design 3 guidelines from Google
+- Android Jetpack libraries for modern development
+- Community feedback and suggestions
+
+## 📞 Support
+
+If you encounter any issues or have questions:
+- Open an issue on GitHub
+- Check the [documentation](docs/)
+- Contact: erdisdriza@gmail.com
 
 ---
 
-**Happy Learning! 🇩🇪📚** 
+**Happy Learning! 🎓📱**
+
+Made with ❤️ for German language learners 
