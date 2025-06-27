@@ -112,8 +112,9 @@ class BookmarksHeroWidget : AppWidgetProvider() {
     }
     
     private fun showEmptyState(views: RemoteViews) {
-        // Hide hero layout and show empty state
-        views.setInt(R.id.widget_hero_content, "setVisibility", android.view.View.GONE)
+        // Hide main content and show empty state
+        views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.GONE)
+        views.setInt(R.id.widget_hero_nav_buttons, "setVisibility", android.view.View.GONE)
         views.setInt(R.id.widget_hero_empty_state, "setVisibility", android.view.View.VISIBLE)
         
         views.setTextViewText(R.id.widget_hero_empty_title, "No bookmarks yet")
@@ -121,7 +122,8 @@ class BookmarksHeroWidget : AppWidgetProvider() {
     }
     
     private fun showErrorState(views: RemoteViews) {
-        views.setInt(R.id.widget_hero_content, "setVisibility", android.view.View.GONE)
+        views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.GONE)
+        views.setInt(R.id.widget_hero_nav_buttons, "setVisibility", android.view.View.GONE)
         views.setInt(R.id.widget_hero_empty_state, "setVisibility", android.view.View.VISIBLE)
         
         views.setTextViewText(R.id.widget_hero_empty_title, "Error loading bookmarks")
@@ -135,8 +137,8 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         currentIndex: Int,
         appWidgetId: Int
     ) {
-        // Show hero content layout
-        views.setInt(R.id.widget_hero_content, "setVisibility", android.view.View.VISIBLE)
+        // Show main content layout
+        views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.VISIBLE)
         views.setInt(R.id.widget_hero_empty_state, "setVisibility", android.view.View.GONE)
         
         val currentSentence = bookmarkedSentences[currentIndex]
@@ -162,8 +164,11 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             val nextSentence = bookmarkedSentences[nextIndex]
             views.setTextViewText(R.id.widget_hero_next_text, truncateText(nextSentence.germanText, 25))
             
-            // Set up preview click handlers
-            setupPreviewClickHandlers(context, views, appWidgetId, prevIndex, nextIndex)
+                    // Set up preview click handlers
+        setupPreviewClickHandlers(context, views, appWidgetId, prevIndex, nextIndex)
+        
+        // Update progress dots display
+        updateProgressDots(views, currentIndex, totalCount)
         } else {
             views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.GONE)
         }
@@ -174,8 +179,7 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         // Set up action buttons
         setupActionButtons(context, views, appWidgetId, currentSentence.id)
         
-        // Update progress indicators
-        updateProgressIndicators(views, currentIndex, totalCount)
+
     }
     
     private fun setupPreviewClickHandlers(
@@ -197,7 +201,7 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             prevIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        views.setOnClickPendingIntent(R.id.widget_hero_prev_preview, prevPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_hero_prev_text, prevPendingIntent)
         
         // Next preview click
         val nextIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
@@ -211,7 +215,7 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             nextIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        views.setOnClickPendingIntent(R.id.widget_hero_next_preview, nextPendingIntent)
+        views.setOnClickPendingIntent(R.id.widget_hero_next_text, nextPendingIntent)
     }
     
     private fun setupNavigationButtons(
@@ -274,39 +278,24 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_hero_remove_button, removePendingIntent)
     }
     
-    private fun updateProgressIndicators(views: RemoteViews, currentIndex: Int, totalCount: Int) {
-        // Update progress dots (show up to 5 dots)
-        val maxDots = minOf(5, totalCount)
-        val dotIds = arrayOf(
-            R.id.widget_hero_dot_1,
-            R.id.widget_hero_dot_2,
-            R.id.widget_hero_dot_3,
-            R.id.widget_hero_dot_4,
-            R.id.widget_hero_dot_5
-        )
-        
-        for (i in 0 until maxDots) {
-            views.setInt(dotIds[i], "setVisibility", android.view.View.VISIBLE)
-            
-            // Highlight current dot
-            val isActive = when {
-                totalCount <= 5 -> i == currentIndex
-                currentIndex < 3 -> i == currentIndex
-                currentIndex >= totalCount - 2 -> i == (maxDots - (totalCount - currentIndex))
-                else -> i == 2 // Middle dot when scrolling through many items
+    private fun updateProgressDots(views: RemoteViews, currentIndex: Int, totalCount: Int) {
+        // Update progress dots display using text symbols
+        val dotsText = when {
+            totalCount <= 1 -> "●"
+            totalCount <= 3 -> {
+                (0 until totalCount).map { i ->
+                    if (i == currentIndex) "●" else "○"
+                }.joinToString("")
             }
-            
-            views.setInt(
-                dotIds[i],
-                "setBackgroundResource",
-                if (isActive) R.drawable.widget_dot_active else R.drawable.widget_dot_inactive
-            )
+            else -> {
+                // Show position indicator for larger sets
+                val position = ((currentIndex.toFloat() / (totalCount - 1)) * 4).toInt()
+                (0..4).map { i ->
+                    if (i == position) "●" else "○"
+                }.joinToString("")
+            }
         }
-        
-        // Hide unused dots
-        for (i in maxDots until dotIds.size) {
-            views.setInt(dotIds[i], "setVisibility", android.view.View.GONE)
-        }
+        views.setTextViewText(R.id.widget_hero_dots, dotsText)
     }
     
     private fun truncateText(text: String, maxLength: Int): String {
