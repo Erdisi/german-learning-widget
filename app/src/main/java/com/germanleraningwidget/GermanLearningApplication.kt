@@ -62,16 +62,9 @@ class GermanLearningApplication : Application(), Configuration.Provider {
     
     override fun onLowMemory() {
         super.onLowMemory()
-        Log.w(TAG, "Low memory warning - clearing caches")
+        Log.w(TAG, "Low memory warning - performing aggressive cleanup")
         
-        // Clear repository caches to free memory
-        try {
-            com.germanleraningwidget.data.repository.SentenceRepository
-                .getInstance(this)
-                .clearCache()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear caches on low memory", e)
-        }
+        performMemoryCleanup(aggressive = true)
     }
     
     override fun onTrimMemory(level: Int) {
@@ -79,19 +72,23 @@ class GermanLearningApplication : Application(), Configuration.Provider {
         
         when (level) {
             @Suppress("DEPRECATION")
-            TRIM_MEMORY_RUNNING_MODERATE,
+            TRIM_MEMORY_RUNNING_MODERATE -> {
+                Log.w(TAG, "Moderate memory pressure (level: $level) - performing light cleanup")
+                performMemoryCleanup(aggressive = false)
+            }
             @Suppress("DEPRECATION")
             TRIM_MEMORY_RUNNING_LOW,
             @Suppress("DEPRECATION") 
             TRIM_MEMORY_RUNNING_CRITICAL -> {
-                Log.w(TAG, "Memory pressure detected (level: $level) - clearing caches")
-                try {
-                    com.germanleraningwidget.data.repository.SentenceRepository
-                        .getInstance(this)
-                        .clearCache()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to clear caches during memory trim", e)
-                }
+                Log.w(TAG, "High memory pressure (level: $level) - performing aggressive cleanup")
+                performMemoryCleanup(aggressive = true)
+            }
+            @Suppress("DEPRECATION")
+            TRIM_MEMORY_UI_HIDDEN,
+            @Suppress("DEPRECATION")
+            TRIM_MEMORY_BACKGROUND -> {
+                Log.d(TAG, "App backgrounded (level: $level) - performing background cleanup")
+                performMemoryCleanup(aggressive = false)
             }
         }
     }
@@ -153,6 +150,32 @@ class GermanLearningApplication : Application(), Configuration.Provider {
                 )
             )
             .build()
+    
+    /**
+     * Perform memory cleanup based on memory pressure level.
+     */
+    private fun performMemoryCleanup(aggressive: Boolean) {
+        try {
+            // Clear repository caches
+            val sentenceRepository = com.germanleraningwidget.data.repository.SentenceRepository
+                .getInstance(this)
+            sentenceRepository.clearCache()
+            
+            if (aggressive) {
+                // Clear validation caches in data models
+                com.germanleraningwidget.data.model.UserPreferences.clearValidationCache()
+                
+                // Suggest garbage collection (though the system ultimately decides)
+                System.gc()
+                
+                Log.d(TAG, "Aggressive memory cleanup completed")
+            } else {
+                Log.d(TAG, "Light memory cleanup completed")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to perform memory cleanup", e)
+        }
+    }
     
     /**
      * Get application-level statistics for monitoring.

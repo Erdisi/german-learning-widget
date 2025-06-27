@@ -65,7 +65,7 @@ class GermanLearningWidget : AppWidgetProvider() {
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            appWidgetId + 1000, // Unique request code for each widget
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -164,7 +164,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                         }
                         val pendingIntent = PendingIntent.getActivity(
                             context,
-                            0,
+                            appWidgetId + 2000, // Unique request code for each widget update
                             openAppIntent,
                             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                         )

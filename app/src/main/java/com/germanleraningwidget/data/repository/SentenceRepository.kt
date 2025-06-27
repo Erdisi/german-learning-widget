@@ -77,7 +77,18 @@ class SentenceRepository private constructor(
         /**
          * Sample sentences database - In a real app, this would come from a database or API
          */
-        private val SAMPLE_SENTENCES = listOf(
+        /**
+         * Sample sentences database with lazy initialization for better performance.
+         * In a real app, this would come from a database or API.
+         */
+        val SAMPLE_SENTENCES: List<GermanSentence> by lazy {
+            createSampleSentences()
+        }
+        
+        /**
+         * Create sample sentences with batch validation.
+         */
+        private fun createSampleSentences(): List<GermanSentence> = listOf(
             // A1 Level - Greetings
             GermanSentence(1, "Guten Morgen!", "Good morning!", GermanLevel.A1, "Greetings"),
             GermanSentence(2, "Wie geht es dir?", "How are you?", GermanLevel.A1, "Greetings"),
@@ -260,47 +271,56 @@ class SentenceRepository private constructor(
     
     /**
      * Get a random sentence matching the specified criteria.
-     * Uses caching for improved performance.
+     * Enhanced with improved caching, validation, and performance optimizations.
      * 
      * @param level Target German level
      * @param topics List of allowed topics
      * @return Random sentence or null if no matches found
      */
     fun getRandomSentence(level: GermanLevel, topics: List<String>): GermanSentence? {
+        // Input validation with early returns
         if (topics.isEmpty()) {
             Log.w(TAG, "No topics provided for sentence retrieval")
             return null
         }
         
-        val topicsSet = topics.toSet()
+        // Convert to set for O(1) lookups - use existing set if already a set  
+        @Suppress("UNCHECKED_CAST")
+        val topicsSet = if (topics is Set<*>) topics as Set<String> else topics.toSet()
         val cacheKey = buildCacheKey(level, topicsSet)
         
-        // Try cache first
+        // Try cache first with null safety
         sentenceCache[cacheKey]?.let { cachedSentences ->
             if (cachedSentences.isNotEmpty()) {
                 return cachedSentences.random()
             }
         }
         
-        // Filter and cache sentences
+        // Filter sentences using optimized instance method
         val filteredSentences = SAMPLE_SENTENCES.filter { sentence ->
             sentence.matchesCriteria(level, topicsSet)
         }
         
         if (filteredSentences.isEmpty()) {
-            Log.w(TAG, "No sentences found for level $level and topics $topics")
+            Log.w(TAG, "No sentences found for level $level and topics $topicsSet")
             return null
         }
         
+        // Cache results and return random sentence
         sentenceCache[cacheKey] = filteredSentences
+        Log.d(TAG, "Cached ${filteredSentences.size} sentences for key: $cacheKey")
         return filteredSentences.random()
     }
     
     /**
-     * Build cache key for sentence filtering.
+     * Build cache key for sentence filtering with optimized string building.
      */
     private fun buildCacheKey(level: GermanLevel, topics: Set<String>): String {
-        return "${level.name}_${topics.sorted().joinToString("_")}"
+        return buildString {
+            append(level.name)
+            append('_')
+            topics.sorted().joinTo(this, "_")
+        }
     }
     
     /**

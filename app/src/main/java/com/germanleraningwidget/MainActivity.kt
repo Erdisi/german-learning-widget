@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,9 +12,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -126,13 +123,13 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        AnimatedApp()
+                        GermanLearningApp()
                     }
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set content", e)
-            // Fallback to basic UI without animations
+            // Fallback to basic UI
             setContent {
                 GermanLearningWidgetTheme {
                     Surface(
@@ -150,6 +147,16 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         Log.d(TAG, "New intent received: ${intent?.getStringExtra(EXTRA_NAVIGATE_TO)}")
+        
+        // Handle immediate widget navigation for new intents
+        intent?.getStringExtra(EXTRA_NAVIGATE_TO)?.let { navigationTarget ->
+            when (navigationTarget) {
+                "home", "bookmarks" -> {
+                    Log.d(TAG, "Handling immediate navigation to: $navigationTarget")
+                    // The LaunchedEffect in GermanLearningApp will handle this
+                }
+            }
+        }
     }
     
     override fun onResume() {
@@ -169,56 +176,6 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Animated wrapper for the main app with launch animations.
- */
-@Composable
-fun AnimatedApp() {
-    var isVisible by remember { mutableStateOf(false) }
-    
-    // Launch animation with error handling
-    LaunchedEffect(Unit) {
-        try {
-            isVisible = true
-        } catch (e: Exception) {
-            Log.e("AnimatedApp", "Error in launch animation", e)
-            isVisible = true // Ensure app still loads
-        }
-    }
-    
-    // Animated scale and fade for smooth app launch with fallback
-    val scale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.9f,
-        animationSpec = try {
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        } catch (e: Exception) {
-            Log.w("AnimatedApp", "Spring animation not available, using tween", e)
-            tween(300)
-        },
-        label = "app_scale"
-    )
-    
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 500,
-            easing = FastOutSlowInEasing
-        ),
-        label = "app_alpha"
-    )
-    
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .scale(scale)
-    ) {
-        GermanLearningApp(alpha = alpha)
-    }
-}
-
-/**
  * Main app composable with navigation and state management.
  * 
  * Features:
@@ -226,11 +183,11 @@ fun AnimatedApp() {
  * - Repository and ViewModel management
  * - Intent-based navigation handling
  * - Error boundary for composition errors
- * - Enhanced animations for smooth user experience
+ * - Optimized performance without complex animations
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GermanLearningApp(alpha: Float = 1f) {
+fun GermanLearningApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
     
@@ -240,30 +197,6 @@ fun GermanLearningApp(alpha: Float = 1f) {
     // Handle widget navigation intents
     val activity = context as? MainActivity
     val navigateTo = activity?.intent?.getStringExtra(MainActivity.EXTRA_NAVIGATE_TO)
-    
-    LaunchedEffect(navigateTo) {
-        try {
-            when (navigateTo) {
-                "bookmarks" -> {
-                    navController.navigate(NavigationConfig.ROUTE_BOOKMARKS) {
-                        popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                    Log.d("Navigation", "Navigated to bookmarks from widget")
-                }
-                "home" -> {
-                    navController.navigate(NavigationConfig.ROUTE_HOME) {
-                        popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                    Log.d("Navigation", "Navigated to home from widget")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("Navigation", "Failed to handle widget navigation", e)
-            appError = "Navigation error: ${e.message}"
-        }
-    }
     
     // Initialize repositories with error handling
     val repositoryState = remember {
@@ -320,8 +253,38 @@ fun GermanLearningApp(alpha: Float = 1f) {
         NavigationConfig.routesWithBottomNav.contains(currentRoute)
     }
     
+    // Handle widget navigation intents after user preferences are loaded
+    LaunchedEffect(navigateTo, userPreferences.isOnboardingCompleted) {
+        try {
+            // Only handle widget navigation if onboarding is completed
+            if (userPreferences.isOnboardingCompleted && !navigateTo.isNullOrEmpty()) {
+                when (navigateTo) {
+                    "bookmarks" -> {
+                        navController.navigate(NavigationConfig.ROUTE_BOOKMARKS) {
+                            popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                        Log.d("Navigation", "Navigated to bookmarks from widget")
+                    }
+                    "home" -> {
+                        navController.navigate(NavigationConfig.ROUTE_HOME) {
+                            popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                        Log.d("Navigation", "Navigated to home from widget")
+                    }
+                }
+                
+                // Clear the intent after handling it
+                activity?.intent?.removeExtra(MainActivity.EXTRA_NAVIGATE_TO)
+            }
+        } catch (e: Exception) {
+            Log.e("Navigation", "Failed to handle widget navigation", e)
+            appError = "Navigation error: ${e.message}"
+        }
+    }
+    
     Scaffold(
-        modifier = Modifier.graphicsLayer { this.alpha = alpha },
         bottomBar = {
             if (showBottomNav) {
                 BottomNavigationBar(

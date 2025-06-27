@@ -61,7 +61,7 @@ class OnboardingViewModel(
     }
     
     /**
-     * Load current user preferences and initialize UI state.
+     * Load current user preferences and initialize UI state with optimized performance.
      */
     private fun loadCurrentPreferences() {
         viewModelScope.launch(exceptionHandler) {
@@ -71,24 +71,46 @@ class OnboardingViewModel(
             
             try {
                 preferencesRepository.userPreferences
-                    .distinctUntilChanged()
+                    .distinctUntilChanged { old, new ->
+                        // Custom equality check to avoid unnecessary updates
+                        old.germanLevel == new.germanLevel &&
+                        old.nativeLanguage == new.nativeLanguage &&
+                        old.selectedTopics == new.selectedTopics &&
+                        old.deliveryFrequency == new.deliveryFrequency &&
+                        old.isOnboardingCompleted == new.isOnboardingCompleted
+                    }
                     .catch { e ->
                         Log.e(TAG, "Error loading preferences", e)
                         updateStateWithError("Failed to load preferences: ${e.message}")
                     }
                     .collect { preferences ->
                         stateMutex.withLock {
-                            _uiState.value = _uiState.value.copy(
-                                selectedLevel = preferences.germanLevel,
-                                selectedLanguage = preferences.nativeLanguage,
-                                selectedTopics = preferences.selectedTopics.toMutableSet(),
-                                selectedFrequency = preferences.deliveryFrequency,
-                                isOnboardingCompleted = preferences.isOnboardingCompleted,
-                                isLoading = false,
-                                error = null
-                            )
+                            // Only update if the UI state actually changed to avoid unnecessary recompositions
+                            val currentState = _uiState.value
+                            val needsUpdate = currentState.selectedLevel != preferences.germanLevel ||
+                                    currentState.selectedLanguage != preferences.nativeLanguage ||
+                                    currentState.selectedTopics != preferences.selectedTopics ||
+                                    currentState.selectedFrequency != preferences.deliveryFrequency ||
+                                    currentState.isOnboardingCompleted != preferences.isOnboardingCompleted ||
+                                    currentState.isLoading
+                            
+                            if (needsUpdate) {
+                                _uiState.value = currentState.copy(
+                                    selectedLevel = preferences.germanLevel,
+                                    selectedLanguage = preferences.nativeLanguage,
+                                    selectedTopics = preferences.selectedTopics.toMutableSet(),
+                                    selectedFrequency = preferences.deliveryFrequency,
+                                    isOnboardingCompleted = preferences.isOnboardingCompleted,
+                                    isLoading = false,
+                                    error = null
+                                )
+                                Log.d(TAG, "Preferences loaded and UI state updated")
+                            } else {
+                                // Just clear loading state
+                                _uiState.value = currentState.copy(isLoading = false, error = null)
+                                Log.d(TAG, "Preferences loaded, no UI state change needed")
+                            }
                         }
-                        Log.d(TAG, "Preferences loaded successfully")
                     }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load preferences", e)
