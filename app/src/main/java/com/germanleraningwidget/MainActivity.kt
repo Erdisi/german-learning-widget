@@ -6,10 +6,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.*
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -112,8 +108,12 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Install splash screen for smooth launch experience
-        installSplashScreen()
+        // Install splash screen for smooth launch experience (Android 12+)
+        try {
+            installSplashScreen()
+        } catch (e: Exception) {
+            Log.w(TAG, "Splash screen not available on this Android version", e)
+        }
         
         super.onCreate(savedInstanceState)
         
@@ -132,7 +132,17 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set content", e)
-            // Don't crash - let the system handle it
+            // Fallback to basic UI without animations
+            setContent {
+                GermanLearningWidgetTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        GermanLearningApp()
+                    }
+                }
+            }
         }
     }
     
@@ -165,18 +175,28 @@ class MainActivity : ComponentActivity() {
 fun AnimatedApp() {
     var isVisible by remember { mutableStateOf(false) }
     
-    // Launch animation
+    // Launch animation with error handling
     LaunchedEffect(Unit) {
-        isVisible = true
+        try {
+            isVisible = true
+        } catch (e: Exception) {
+            Log.e("AnimatedApp", "Error in launch animation", e)
+            isVisible = true // Ensure app still loads
+        }
     }
     
-    // Animated scale and fade for smooth app launch
+    // Animated scale and fade for smooth app launch with fallback
     val scale by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0.9f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = try {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        } catch (e: Exception) {
+            Log.w("AnimatedApp", "Spring animation not available, using tween", e)
+            tween(300)
+        },
         label = "app_scale"
     )
     
@@ -317,31 +337,7 @@ fun GermanLearningApp(alpha: Float = 1f) {
         NavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(paddingValues),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(300))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth / 3 },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(300))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth / 3 },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(300))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(300))
-            }
+            modifier = Modifier.padding(paddingValues)
         ) {
             composable(NavigationConfig.ROUTE_ONBOARDING) {
                 OnboardingScreen(
