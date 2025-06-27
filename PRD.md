@@ -142,6 +142,13 @@ androidx.glance.appwidget
    - Swipe through bookmarked content
    - Remove bookmark functionality
 
+3. **Hero Bookmarks Widget** (`BookmarksHeroWidget.kt`)
+   - Material Design 3 Hero carousel layout
+   - Prominent central bookmark with side previews
+   - Interactive preview navigation
+   - Progress indicators with dots
+   - Enhanced visual hierarchy
+
 **Technical Implementation**:
 - Glance AppWidget framework
 - Custom widget layouts (`widget_german_learning.xml`)
@@ -525,6 +532,8 @@ android {
 - **Progress Tracking**: Detailed learning analytics
 - **Social Features**: Share favorite sentences
 - **Offline Dictionary**: Built-in German-English dictionary
+- **Multi-Browse Widget**: Additional Material Design 3 carousel layout
+- **Full-Screen Widget**: Immersive edge-to-edge learning experience
 
 ### 12.2 Phase 3 Enhancements
 - **AI-Powered Recommendations**: Personalized sentence suggestions

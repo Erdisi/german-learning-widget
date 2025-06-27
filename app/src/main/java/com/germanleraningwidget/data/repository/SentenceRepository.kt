@@ -254,9 +254,10 @@ class SentenceRepository private constructor(
     }
     
     /**
-     * Notify BookmarksWidget of changes using reflection to avoid circular dependencies.
+     * Notify BookmarksWidget and BookmarksHeroWidget of changes using reflection to avoid circular dependencies.
      */
     private fun notifyBookmarksWidget() {
+        // Notify regular BookmarksWidget
         try {
             val bookmarksWidgetClass = Class.forName("com.germanleraningwidget.widget.BookmarksWidget")
             val updateMethod = bookmarksWidgetClass.getMethod("updateAllWidgets", Context::class.java)
@@ -266,6 +267,18 @@ class SentenceRepository private constructor(
             Log.d(TAG, "BookmarksWidget not available - this is normal during testing")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to notify BookmarksWidget", e)
+        }
+        
+        // Notify Hero BookmarksWidget
+        try {
+            val heroWidgetClass = Class.forName("com.germanleraningwidget.widget.BookmarksHeroWidget")
+            val updateMethod = heroWidgetClass.getMethod("updateAllWidgets", Context::class.java)
+            updateMethod.invoke(null, context)
+            Log.d(TAG, "Successfully notified BookmarksHeroWidget")
+        } catch (e: ClassNotFoundException) {
+            Log.d(TAG, "BookmarksHeroWidget not available - this is normal during testing")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to notify BookmarksHeroWidget", e)
         }
     }
     

@@ -229,8 +229,9 @@ class BookmarksWidget : AppWidgetProvider() {
                     val appWidgetManager = AppWidgetManager.getInstance(context)
                     updateAppWidget(context, appWidgetManager, widgetId)
                     
-                    // Also update the main learning widget to reflect bookmark change
+                    // Also update the main learning widget and hero widget to reflect bookmark change
                     GermanLearningWidget.updateAllWidgets(context)
+                    BookmarksHeroWidget.updateAllWidgets(context)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BookmarksWidget", "Error removing bookmark", e)

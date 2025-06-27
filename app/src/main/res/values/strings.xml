@@ -2,4 +2,5 @@
     <string name="app_name">German Learning Widget</string>
     <string name="german_learning_widget_description">Learn German with daily sentences</string>
     <string name="bookmarks_widget_description">Review your saved German sentences</string>
+    <string name="bookmarks_hero_widget_description">Hero-style carousel for your bookmarked German sentences</string>
 </resources>
