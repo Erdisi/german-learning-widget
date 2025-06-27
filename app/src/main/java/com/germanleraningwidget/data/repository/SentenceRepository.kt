@@ -69,6 +69,21 @@ class SentenceRepository private constructor(private val context: Context) {
         _bookmarkedIds.value = ids
         CoroutineScope(Dispatchers.IO).launch {
             saveBookmarkedIds(ids)
+            // Update bookmarks widget when bookmarks change
+            updateBookmarksWidget()
+        }
+    }
+    
+    private fun updateBookmarksWidget() {
+        try {
+            // Use reflection to avoid circular dependency
+            val bookmarksWidgetClass = Class.forName("com.germanleraningwidget.widget.BookmarksWidget")
+            val updateMethod = bookmarksWidgetClass.getMethod("updateAllWidgets", android.content.Context::class.java)
+            updateMethod.invoke(null, context)
+            android.util.Log.d("SentenceRepository", "Updated bookmarks widget")
+        } catch (e: Exception) {
+            // BookmarksWidget might not be available, ignore
+            android.util.Log.d("SentenceRepository", "BookmarksWidget not available for update: ${e.message}")
         }
     }
 

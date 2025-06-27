@@ -78,6 +78,18 @@ fun GermanLearningApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
     
+    // Handle navigation from widget
+    val activity = context as? MainActivity
+    val navigateTo = activity?.intent?.getStringExtra("navigate_to")
+    
+    LaunchedEffect(navigateTo) {
+        if (navigateTo == "bookmarks") {
+            navController.navigate("bookmarks") {
+                popUpTo("home") { inclusive = false }
+            }
+        }
+    }
+    
     // Repositories
     val sentenceRepository = remember { SentenceRepository.getInstance(context) }
     val preferencesRepository = remember { UserPreferencesRepository(context) }

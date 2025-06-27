@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_bookmarks_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bookmarks_background"
+    android:padding="16dp">
+    
+    <!-- Header with title and counter -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+        
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📚 Bookmarks"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium" />
+        
+        <TextView
+            android:id="@+id/widget_bookmarks_counter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="1/5"
+            android:textColor="#B3FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif" />
+    
+    </LinearLayout>
+    
+    <!-- German Text -->
+    <TextView
+        android:id="@+id/widget_bookmarks_german_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Guten Morgen!"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif"
+        android:layout_marginBottom="8dp"
+        android:lineSpacingExtra="2dp" />
+    
+    <!-- Translation -->
+    <TextView
+        android:id="@+id/widget_bookmarks_translation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Good morning!"
+        android:textColor="#E6FFFFFF"
+        android:textSize="14sp"
+        android:fontFamily="sans-serif"
+        android:layout_marginBottom="12dp"
+        android:lineSpacingExtra="1dp" />
+    
+    <!-- Bottom section with topic and action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        
+        <!-- Topic -->
+        <TextView
+            android:id="@+id/widget_bookmarks_topic"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Greetings"
+            android:textColor="#B3FFFFFF"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif"
+            android:background="@drawable/topic_background"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp" />
+        
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginStart="8dp">
+            
+            <!-- Next Button -->
+            <ImageButton
+                android:id="@+id/widget_bookmarks_next_button"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_next_arrow"
+                android:background="@drawable/widget_button_background"
+                android:contentDescription="Next bookmark"
+                android:scaleType="centerInside"
+                android:layout_marginEnd="8dp" />
+            
+            <!-- Remove Button -->
+            <ImageButton
+                android:id="@+id/widget_bookmarks_remove_button"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_bookmark_filled"
+                android:background="@drawable/widget_button_background"
+                android:contentDescription="Remove bookmark"
+                android:scaleType="centerInside" />
+        
+        </LinearLayout>
+    
+    </LinearLayout>
+
+</LinearLayout> 

@@ -25,6 +25,20 @@ class GermanLearningWidget : AppWidgetProvider() {
         
         // Track current sentence for each widget instance
         private val currentSentences = mutableMapOf<Int, GermanSentence>()
+        
+        fun updateAllWidgets(context: Context) {
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val componentName = android.content.ComponentName(context, GermanLearningWidget::class.java)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            
+            if (appWidgetIds.isNotEmpty()) {
+                val intent = Intent(context, GermanLearningWidget::class.java).apply {
+                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds)
+                }
+                context.sendBroadcast(intent)
+            }
+        }
     }
     
     override fun onUpdate(
