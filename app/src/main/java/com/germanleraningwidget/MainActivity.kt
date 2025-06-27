@@ -56,6 +56,9 @@ object NavigationConfig {
     const val ROUTE_HOME = "home"
     const val ROUTE_BOOKMARKS = "bookmarks"
     const val ROUTE_SETTINGS = "settings"
+    const val ROUTE_LEARNING_PREFERENCES = "learning_preferences"
+    const val ROUTE_WIDGET_CUSTOMIZATION = "widget_customization"
+    const val ROUTE_WIDGET_DETAILS = "widget_details"
     
     val bottomNavItems = listOf(
         BottomNavItem(
@@ -332,11 +335,50 @@ fun GermanLearningApp() {
             }
             
             composable(NavigationConfig.ROUTE_SETTINGS) {
-                LearningSetupScreen(
+                SettingsScreen(
                     userPreferences = userPreferences,
                     preferencesRepository = repositoryState.preferencesRepository,
                     onNavigateBack = { 
                         navigateBackToHome(navController)
+                    },
+                    onNavigateToLearningPreferences = {
+                        navController.navigate(NavigationConfig.ROUTE_LEARNING_PREFERENCES)
+                    },
+                    onNavigateToWidgetCustomization = {
+                        navController.navigate(NavigationConfig.ROUTE_WIDGET_CUSTOMIZATION)
+                    }
+                )
+            }
+            
+            composable(NavigationConfig.ROUTE_LEARNING_PREFERENCES) {
+                LearningSetupScreen(
+                    userPreferences = userPreferences,
+                    preferencesRepository = repositoryState.preferencesRepository,
+                    onNavigateBack = { 
+                        navController.popBackStack()
+                    }
+                )
+            }
+            
+            composable(NavigationConfig.ROUTE_WIDGET_CUSTOMIZATION) {
+                WidgetCustomizationScreen(
+                    onNavigateBack = { 
+                        navController.popBackStack()
+                    },
+                    onNavigateToWidgetDetails = { widgetType ->
+                        navController.navigate("${NavigationConfig.ROUTE_WIDGET_DETAILS}/${widgetType.key}")
+                    }
+                )
+            }
+            
+            composable("${NavigationConfig.ROUTE_WIDGET_DETAILS}/{widgetTypeKey}") { backStackEntry ->
+                val widgetTypeKey = backStackEntry.arguments?.getString("widgetTypeKey") ?: "main_widget"
+                val widgetType = com.germanleraningwidget.data.model.WidgetType.fromKey(widgetTypeKey)
+                
+                WidgetDetailsCustomizationScreen(
+                    widgetType = widgetType,
+                    onNavigateBack = { 
+                        navController.popBackStack()
                     }
                 )
             }

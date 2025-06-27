@@ -10,6 +10,7 @@ import android.widget.RemoteViews
 import com.germanleraningwidget.MainActivity
 import com.germanleraningwidget.R
 import com.germanleraningwidget.data.model.GermanSentence
+import com.germanleraningwidget.data.model.WidgetType
 import com.germanleraningwidget.data.repository.SentenceRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,19 +44,72 @@ class BookmarksWidget : AppWidgetProvider() {
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        android.util.Log.d("BookmarksWidget", "onUpdate called for ${appWidgetIds.size} widgets")
-        
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
     }
 
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-        android.util.Log.d("BookmarksWidget", "Updating bookmarks widget $appWidgetId")
-        
-        val views = RemoteViews(context.packageName, R.layout.widget_bookmarks)
-        
-        // Create intent to open the app when widget is tapped
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_bookmarks)
+                
+                // Apply customizations using centralized helper
+                val customization = WidgetCustomizationHelper.applyCustomizations(
+                    context, views, WidgetType.BOOKMARKS, R.id.widget_bookmarks_container
+                )
+                
+                // Set up main click intent
+                setupMainClick(context, views, appWidgetId)
+                
+                // Load bookmarks
+                val sentenceRepository = SentenceRepository.getInstance(context)
+                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                
+                if (bookmarkedSentences.isEmpty()) {
+                    showEmptyState(views, customization)
+                } else {
+                    // Get current index for this widget, ensuring it's valid
+                    val currentIndex = currentIndices.getOrDefault(appWidgetId, 0)
+                    val validIndex = if (currentIndex >= bookmarkedSentences.size) 0 else currentIndex
+                    currentIndices[appWidgetId] = validIndex
+                    
+                    val currentSentence = bookmarkedSentences[validIndex]
+                    
+                    // Update counter and content
+                    views.setTextViewText(R.id.widget_bookmarks_counter, "${validIndex + 1}/${bookmarkedSentences.size}")
+                    views.setTextViewText(R.id.widget_bookmarks_german_text, currentSentence.germanText)
+                    views.setTextViewText(R.id.widget_bookmarks_translation, currentSentence.translation)
+                    views.setTextViewText(R.id.widget_bookmarks_topic, currentSentence.topic)
+                    
+                    // Apply text customizations
+                    WidgetCustomizationHelper.applyTextCustomizations(
+                        views, customization,
+                        R.id.widget_bookmarks_german_text, R.id.widget_bookmarks_translation,
+                        18f, 14f // Base sizes for bookmarks widget
+                    )
+                    
+                    // Set up action buttons
+                    setupNextButton(context, views, appWidgetId)
+                    setupRemoveButton(context, views, appWidgetId, currentSentence.id)
+                }
+                
+                // Update the widget on the main thread
+                CoroutineScope(Dispatchers.Main).launch {
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("BookmarksWidget", "Error updating widget $appWidgetId", e)
+                showErrorState(context, appWidgetManager, appWidgetId)
+            }
+        }
+    }
+    
+    /**
+     * Set up main container click to open bookmarks screen.
+     */
+    private fun setupMainClick(context: Context, views: RemoteViews, appWidgetId: Int) {
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_NAVIGATE_TO, "bookmarks")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -67,96 +121,88 @@ class BookmarksWidget : AppWidgetProvider() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_bookmarks_container, pendingIntent)
+    }
+    
+    /**
+     * Set up next button to cycle through bookmarks.
+     */
+    private fun setupNextButton(context: Context, views: RemoteViews, appWidgetId: Int) {
+        val nextIntent = Intent(context, BookmarksWidget::class.java).apply {
+            action = ACTION_NEXT_BOOKMARK
+            putExtra(EXTRA_WIDGET_ID, appWidgetId)
+        }
+        val nextPendingIntent = PendingIntent.getBroadcast(
+            context,
+            appWidgetId * 100,
+            nextIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_bookmarks_next_button, nextPendingIntent)
+    }
+    
+    /**
+     * Set up remove button to remove current bookmark.
+     */
+    private fun setupRemoveButton(context: Context, views: RemoteViews, appWidgetId: Int, sentenceId: Long) {
+        val removeIntent = Intent(context, BookmarksWidget::class.java).apply {
+            action = ACTION_REMOVE_BOOKMARK
+            putExtra(EXTRA_WIDGET_ID, appWidgetId)
+            putExtra(EXTRA_SENTENCE_ID, sentenceId)
+        }
+        val removePendingIntent = PendingIntent.getBroadcast(
+            context,
+            appWidgetId * 100 + 1,
+            removeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_bookmarks_remove_button, removePendingIntent)
+    }
+    
+    /**
+     * Show empty state when no bookmarks exist.
+     */
+    private fun showEmptyState(views: RemoteViews, customization: com.germanleraningwidget.data.model.WidgetCustomization) {
+        views.setTextViewText(R.id.widget_bookmarks_counter, "0/0")
+        views.setTextViewText(R.id.widget_bookmarks_german_text, "No bookmarks yet")
+        views.setTextViewText(R.id.widget_bookmarks_translation, "Save sentences to see them here")
+        views.setTextViewText(R.id.widget_bookmarks_topic, "")
         
-        CoroutineScope(Dispatchers.IO).launch {
+        // Apply text customizations to empty state
+        WidgetCustomizationHelper.applyTextCustomizations(
+            views, customization,
+            R.id.widget_bookmarks_german_text, R.id.widget_bookmarks_translation,
+            18f, 14f
+        )
+    }
+    
+    /**
+     * Show error state.
+     */
+    private fun showErrorState(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
-                val sentenceRepository = SentenceRepository.getInstance(context)
-                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                val views = RemoteViews(context.packageName, R.layout.widget_bookmarks)
                 
-                android.util.Log.d("BookmarksWidget", "Found ${bookmarkedSentences.size} bookmarked sentences")
+                // Apply basic customization
+                WidgetCustomizationHelper.applyCustomizations(
+                    context, views, WidgetType.BOOKMARKS, R.id.widget_bookmarks_container
+                )
                 
-                if (bookmarkedSentences.isEmpty()) {
-                    // Show empty state
-                    views.setTextViewText(R.id.widget_bookmarks_german_text, "No bookmarks yet")
-                    views.setTextViewText(R.id.widget_bookmarks_translation, "Save sentences from the learning widget")
-                    views.setTextViewText(R.id.widget_bookmarks_topic, "")
-                    views.setTextViewText(R.id.widget_bookmarks_counter, "0/0")
-                    
-                    // Hide action buttons
-                    views.setInt(R.id.widget_bookmarks_next_button, "setVisibility", android.view.View.GONE)
-                    views.setInt(R.id.widget_bookmarks_remove_button, "setVisibility", android.view.View.GONE)
-                } else {
-                    // Get current index for this widget
-                    val currentIndex = currentIndices.getOrDefault(appWidgetId, 0)
-                    val validIndex = if (currentIndex >= bookmarkedSentences.size) 0 else currentIndex
-                    currentIndices[appWidgetId] = validIndex
-                    
-                    val currentSentence = bookmarkedSentences[validIndex]
-                    
-                    // Update text content
-                    views.setTextViewText(R.id.widget_bookmarks_german_text, currentSentence.germanText)
-                    views.setTextViewText(R.id.widget_bookmarks_translation, currentSentence.translation)
-                    views.setTextViewText(R.id.widget_bookmarks_topic, currentSentence.topic)
-                    views.setTextViewText(R.id.widget_bookmarks_counter, "${validIndex + 1}/${bookmarkedSentences.size}")
-                    
-                    // Show action buttons
-                    views.setInt(R.id.widget_bookmarks_next_button, "setVisibility", android.view.View.VISIBLE)
-                    views.setInt(R.id.widget_bookmarks_remove_button, "setVisibility", android.view.View.VISIBLE)
-                    
-                    // Set up next button
-                    val nextIntent = Intent(context, BookmarksWidget::class.java).apply {
-                        action = ACTION_NEXT_BOOKMARK
-                        putExtra(EXTRA_WIDGET_ID, appWidgetId)
-                    }
-                    val nextPendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        appWidgetId * 100, // Unique request code
-                        nextIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(R.id.widget_bookmarks_next_button, nextPendingIntent)
-                    
-                    // Set up remove button
-                    val removeIntent = Intent(context, BookmarksWidget::class.java).apply {
-                        action = ACTION_REMOVE_BOOKMARK
-                        putExtra(EXTRA_WIDGET_ID, appWidgetId)
-                        putExtra(EXTRA_SENTENCE_ID, currentSentence.id)
-                    }
-                    val removePendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        appWidgetId * 100 + 1, // Unique request code
-                        removeIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(R.id.widget_bookmarks_remove_button, removePendingIntent)
-                }
-                
-                // Update the widget on the main thread
-                CoroutineScope(Dispatchers.Main).launch {
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                    android.util.Log.d("BookmarksWidget", "Widget $appWidgetId updated successfully")
-                }
-                
-            } catch (e: Exception) {
-                android.util.Log.e("BookmarksWidget", "Error updating widget $appWidgetId", e)
-                
-                // Show error state
-                views.setTextViewText(R.id.widget_bookmarks_german_text, "Error loading bookmarks")
+                views.setTextViewText(R.id.widget_bookmarks_counter, "0/0")
+                views.setTextViewText(R.id.widget_bookmarks_german_text, "Error loading")
                 views.setTextViewText(R.id.widget_bookmarks_translation, "Tap to open app")
                 views.setTextViewText(R.id.widget_bookmarks_topic, "")
-                views.setTextViewText(R.id.widget_bookmarks_counter, "")
                 
-                CoroutineScope(Dispatchers.Main).launch {
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                }
+                setupMainClick(context, views, appWidgetId)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e: Exception) {
+                android.util.Log.e("BookmarksWidget", "Error showing error state", e)
             }
         }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        
-        android.util.Log.d("BookmarksWidget", "Received action: ${intent.action}")
         
         when (intent.action) {
             ACTION_NEXT_BOOKMARK -> {
@@ -172,12 +218,22 @@ class BookmarksWidget : AppWidgetProvider() {
                     handleRemoveBookmark(context, widgetId, sentenceId)
                 }
             }
+            AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
+                val appWidgetIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
+                if (appWidgetIds != null) {
+                    val appWidgetManager = AppWidgetManager.getInstance(context)
+                    for (appWidgetId in appWidgetIds) {
+                        updateAppWidget(context, appWidgetManager, appWidgetId)
+                    }
+                }
+            }
         }
     }
     
+    /**
+     * Handle next bookmark button click.
+     */
     private fun handleNextBookmark(context: Context, widgetId: Int) {
-        android.util.Log.d("BookmarksWidget", "Next bookmark clicked for widget $widgetId")
-        
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
@@ -188,9 +244,7 @@ class BookmarksWidget : AppWidgetProvider() {
                     val nextIndex = (currentIndex + 1) % bookmarkedSentences.size
                     currentIndices[widgetId] = nextIndex
                     
-                    android.util.Log.d("BookmarksWidget", "Moving to next bookmark: $nextIndex/${bookmarkedSentences.size}")
-                    
-                    // Update the widget
+                    // Update widget
                     val appWidgetManager = AppWidgetManager.getInstance(context)
                     updateAppWidget(context, appWidgetManager, widgetId)
                 }
@@ -200,18 +254,19 @@ class BookmarksWidget : AppWidgetProvider() {
         }
     }
     
+    /**
+     * Handle remove bookmark button click.
+     */
     private fun handleRemoveBookmark(context: Context, widgetId: Int, sentenceId: Long) {
-        android.util.Log.d("BookmarksWidget", "Remove bookmark clicked for sentence $sentenceId")
-        
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
                 val bookmarkedSentences = sentenceRepository.getSavedSentences()
-                val sentenceToRemove = bookmarkedSentences.find { it.id == sentenceId }
                 
+                // Find and remove the sentence
+                val sentenceToRemove = bookmarkedSentences.find { it.id == sentenceId }
                 if (sentenceToRemove != null) {
-                    // Remove the bookmark
-                    sentenceRepository.toggleSaveSentence(sentenceToRemove)
+                    sentenceRepository.toggleSaveSentence(sentenceToRemove) // This will remove it
                     
                     // Adjust current index if needed
                     val currentIndex = currentIndices.getOrDefault(widgetId, 0)
@@ -223,18 +278,16 @@ class BookmarksWidget : AppWidgetProvider() {
                         currentIndices[widgetId] = 0
                     }
                     
-                    android.util.Log.d("BookmarksWidget", "Bookmark removed, updating widget")
-                    
-                    // Update the widget
+                    // Update widget
                     val appWidgetManager = AppWidgetManager.getInstance(context)
                     updateAppWidget(context, appWidgetManager, widgetId)
                     
-                    // Also update the main learning widget and hero widget to reflect bookmark change
+                    // Also update other widgets
                     GermanLearningWidget.updateAllWidgets(context)
                     BookmarksHeroWidget.updateAllWidgets(context)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("BookmarksWidget", "Error removing bookmark", e)
+                android.util.Log.e("BookmarksWidget", "Error handling remove bookmark", e)
             }
         }
     }

@@ -9,6 +9,7 @@ import android.widget.RemoteViews
 import com.germanleraningwidget.MainActivity
 import com.germanleraningwidget.R
 import com.germanleraningwidget.data.model.GermanSentence
+import com.germanleraningwidget.data.model.WidgetType
 import com.germanleraningwidget.data.repository.SentenceRepository
 import com.germanleraningwidget.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.CoroutineScope
@@ -51,79 +52,148 @@ class GermanLearningWidget : AppWidgetProvider() {
         }
     }
     
+    /**
+     * Single method to update a widget with current data and customizations.
+     */
     private fun updateWidget(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
-        
-        // Create intent to open the app when widget is tapped (goes to home)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
+                
+                // Apply customizations using centralized helper
+                val customization = WidgetCustomizationHelper.applyCustomizations(
+                    context, views, WidgetType.MAIN, R.id.widget_container
+                )
+                
+                // Load repositories
+                val sentenceRepository = SentenceRepository.getInstance(context)
+                val preferencesRepository = UserPreferencesRepository(context)
+                val preferences = preferencesRepository.userPreferences.first()
+                
+                // Get sentence data
+                val sentence = sentenceRepository.getRandomSentence(
+                    level = preferences.germanLevel,
+                    topics = preferences.selectedTopics.toList()
+                )
+                
+                if (sentence != null) {
+                    // Store current sentence
+                    currentSentences[appWidgetId] = sentence
+                    
+                    // Set text content
+                    views.setTextViewText(R.id.widget_german_text, sentence.germanText)
+                    views.setTextViewText(R.id.widget_translation, sentence.translation)
+                    views.setTextViewText(R.id.widget_topic, sentence.topic)
+                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                    
+                    // Apply text customizations
+                    WidgetCustomizationHelper.applyTextCustomizations(
+                        views, customization,
+                        R.id.widget_german_text, R.id.widget_translation,
+                        18f, 14f // Base sizes for main widget
+                    )
+                    
+                    // Set save button state
+                    val isSaved = sentenceRepository.isSentenceSaved(sentence.id)
+                    views.setImageViewResource(
+                        R.id.widget_save_button,
+                        if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
+                    )
+                    
+                    // Set up save button click
+                    setupSaveButton(context, views, appWidgetId, sentence.id)
+                } else {
+                    // Show default content with customizations
+                    views.setTextViewText(R.id.widget_german_text, "Guten Tag!")
+                    views.setTextViewText(R.id.widget_translation, "Good day!")
+                    views.setTextViewText(R.id.widget_topic, "Greetings")
+                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                    
+                    // Apply text customizations to default content
+                    WidgetCustomizationHelper.applyTextCustomizations(
+                        views, customization,
+                        R.id.widget_german_text, R.id.widget_translation,
+                        18f, 14f
+                    )
+                }
+                
+                // Set up main click intent
+                setupMainClick(context, views, appWidgetId)
+                
+                // Update widget on main thread
+                CoroutineScope(Dispatchers.Main).launch {
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("GermanLearningWidget", "Error updating widget $appWidgetId", e)
+                // Show error state with basic customization
+                showErrorState(context, appWidgetManager, appWidgetId)
+            }
+        }
+    }
+    
+    /**
+     * Set up main container click to open app.
+     */
+    private fun setupMainClick(context: Context, views: RemoteViews, appWidgetId: Int) {
         val intent = Intent(context, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_NAVIGATE_TO, "home")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            appWidgetId + 1000, // Unique request code for each widget
+            appWidgetId + 1000,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
-        
-        // Load and display a sentence
-        CoroutineScope(Dispatchers.IO).launch {
+    }
+    
+    /**
+     * Set up save button click intent.
+     */
+    private fun setupSaveButton(context: Context, views: RemoteViews, appWidgetId: Int, sentenceId: Long) {
+        val saveIntent = Intent(context, GermanLearningWidget::class.java).apply {
+            action = ACTION_SAVE_SENTENCE
+            putExtra(EXTRA_WIDGET_ID, appWidgetId)
+            putExtra(EXTRA_SENTENCE_ID, sentenceId)
+        }
+        val savePendingIntent = PendingIntent.getBroadcast(
+            context,
+            appWidgetId,
+            saveIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_save_button, savePendingIntent)
+    }
+    
+    /**
+     * Show error state with basic styling.
+     */
+    private fun showErrorState(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
-                val sentenceRepository = SentenceRepository.getInstance(context)
-                val preferencesRepository = UserPreferencesRepository(context)
+                val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
                 
-                val preferences = preferencesRepository.userPreferences.first()
-                val sentence = sentenceRepository.getRandomSentence(
-                    level = preferences.germanLevel,
-                    topics = preferences.selectedTopics.toList()
+                // Apply basic customization
+                WidgetCustomizationHelper.applyCustomizations(
+                    context, views, WidgetType.MAIN, R.id.widget_container
                 )
                 
-                sentence?.let {
-                    // Store the current sentence for this widget
-                    currentSentences[appWidgetId] = it
-                    
-                    views.setTextViewText(R.id.widget_german_text, it.germanText)
-                    views.setTextViewText(R.id.widget_translation, it.translation)
-                    views.setTextViewText(R.id.widget_topic, it.topic)
-                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
-                    
-                    // Set save button state
-                    val isSaved = sentenceRepository.isSentenceSaved(it.id)
-                    views.setImageViewResource(
-                        R.id.widget_save_button,
-                        if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
-                    )
-                    
-                    // Create save button click intent
-                    val saveIntent = Intent(context, GermanLearningWidget::class.java).apply {
-                        action = ACTION_SAVE_SENTENCE
-                        putExtra(EXTRA_WIDGET_ID, appWidgetId)
-                        putExtra(EXTRA_SENTENCE_ID, it.id)
-                    }
-                    val savePendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        appWidgetId,
-                        saveIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(R.id.widget_save_button, savePendingIntent)
-                    
-                    // Update the widget
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                }
-            } catch (e: Exception) {
-                // Show default text if there's an error
-                views.setTextViewText(R.id.widget_german_text, "Guten Tag!")
-                views.setTextViewText(R.id.widget_translation, "Good day!")
-                views.setTextViewText(R.id.widget_topic, "Greetings")
+                views.setTextViewText(R.id.widget_german_text, "Error loading")
+                views.setTextViewText(R.id.widget_translation, "Tap to open app")
+                views.setTextViewText(R.id.widget_topic, "")
                 views.setTextViewText(R.id.widget_level_indicator, "A1")
                 
+                setupMainClick(context, views, appWidgetId)
                 appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e: Exception) {
+                android.util.Log.e("GermanLearningWidget", "Error showing error state", e)
             }
         }
     }
@@ -131,93 +201,30 @@ class GermanLearningWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         
-        android.util.Log.d("GermanLearningWidget", "Widget received action: ${intent.action}")
-        
         when (intent.action) {
             ACTION_SAVE_SENTENCE -> {
                 val widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, -1)
                 val sentenceId = intent.getLongExtra(EXTRA_SENTENCE_ID, -1L)
-                
-                android.util.Log.d("GermanLearningWidget", "Save button clicked! Widget ID: $widgetId, Sentence ID: $sentenceId")
                 
                 if (widgetId != -1 && sentenceId != -1L) {
                     handleSaveSentence(context, widgetId, sentenceId)
                 }
             }
             AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
+                // Handle both regular updates and custom updates with sentence data
                 val appWidgetIds = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
                 val germanText = intent.getStringExtra("german_text")
                 val translation = intent.getStringExtra("translation")
-                val topic = intent.getStringExtra("topic")
-                val sentenceId = intent.getLongExtra("sentence_id", -1L)
                 
-                if (appWidgetIds != null && germanText != null && translation != null) {
-                    val appWidgetManager = AppWidgetManager.getInstance(context)
-                    
-                    for (appWidgetId in appWidgetIds) {
-                        val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
-                        
-                        // Create intent to open the app when widget is tapped (goes to home)
-                        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-                            putExtra(MainActivity.EXTRA_NAVIGATE_TO, "home")
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        }
-                        val pendingIntent = PendingIntent.getActivity(
-                            context,
-                            appWidgetId + 2000, // Unique request code for each widget update
-                            openAppIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        )
-                        views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
-                        
-                        // Update the text
-                        views.setTextViewText(R.id.widget_german_text, germanText)
-                        views.setTextViewText(R.id.widget_translation, translation)
-                        views.setTextViewText(R.id.widget_topic, topic ?: "")
-                        
-                        // Set level indicator (get from preferences)
-                        CoroutineScope(Dispatchers.IO).launch {
-                            try {
-                                val preferencesRepository = UserPreferencesRepository(context)
-                                val preferences = preferencesRepository.userPreferences.first()
-                                views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
-                                appWidgetManager.updateAppWidget(appWidgetId, views)
-                            } catch (e: Exception) {
-                                views.setTextViewText(R.id.widget_level_indicator, "A1")
-                                appWidgetManager.updateAppWidget(appWidgetId, views)
-                            }
-                        }
-                        
-                        // Update save button state if we have a sentence ID
-                        if (sentenceId != -1L) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                try {
-                                    val sentenceRepository = SentenceRepository.getInstance(context)
-                                    val isSaved = sentenceRepository.isSentenceSaved(sentenceId)
-                                    
-                                    views.setImageViewResource(
-                                        R.id.widget_save_button,
-                                        if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
-                                    )
-                                    
-                                    // Create save button click intent
-                                    val saveIntent = Intent(context, GermanLearningWidget::class.java).apply {
-                                        action = ACTION_SAVE_SENTENCE
-                                        putExtra(EXTRA_WIDGET_ID, appWidgetId)
-                                        putExtra(EXTRA_SENTENCE_ID, sentenceId)
-                                    }
-                                    val savePendingIntent = PendingIntent.getBroadcast(
-                                        context,
-                                        appWidgetId,
-                                        saveIntent,
-                                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                                    )
-                                    views.setOnClickPendingIntent(R.id.widget_save_button, savePendingIntent)
-                                    
-                                } catch (e: Exception) {
-                                    // Handle error silently
-                                }
-                            }
+                if (appWidgetIds != null) {
+                    if (germanText != null && translation != null) {
+                        // Custom update with specific sentence data
+                        updateWidgetsWithSentence(context, appWidgetIds, germanText, translation, intent)
+                    } else {
+                        // Regular update - refresh all widgets
+                        val appWidgetManager = AppWidgetManager.getInstance(context)
+                        for (appWidgetId in appWidgetIds) {
+                            updateWidget(context, appWidgetManager, appWidgetId)
                         }
                     }
                 }
@@ -225,66 +232,112 @@ class GermanLearningWidget : AppWidgetProvider() {
         }
     }
     
+    /**
+     * Update widgets with specific sentence data (from WorkManager).
+     */
+    private fun updateWidgetsWithSentence(
+        context: Context,
+        appWidgetIds: IntArray,
+        germanText: String,
+        translation: String,
+        intent: Intent
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val topic = intent.getStringExtra("topic")
+                val sentenceId = intent.getLongExtra("sentence_id", -1L)
+                
+                for (appWidgetId in appWidgetIds) {
+                    val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
+                    
+                    // Apply customizations
+                    val customization = WidgetCustomizationHelper.applyCustomizations(
+                        context, views, WidgetType.MAIN, R.id.widget_container
+                    )
+                    
+                    // Set content
+                    views.setTextViewText(R.id.widget_german_text, germanText)
+                    views.setTextViewText(R.id.widget_translation, translation)
+                    views.setTextViewText(R.id.widget_topic, topic ?: "")
+                    
+                    // Get user level for display
+                    val preferencesRepository = UserPreferencesRepository(context)
+                    val preferences = preferencesRepository.userPreferences.first()
+                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                    
+                    // Apply text customizations
+                    WidgetCustomizationHelper.applyTextCustomizations(
+                        views, customization,
+                        R.id.widget_german_text, R.id.widget_translation,
+                        18f, 14f
+                    )
+                    
+                    // Set up save button if we have sentence ID
+                    if (sentenceId != -1L) {
+                        val sentenceRepository = SentenceRepository.getInstance(context)
+                        val isSaved = sentenceRepository.isSentenceSaved(sentenceId)
+                        views.setImageViewResource(
+                            R.id.widget_save_button,
+                            if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
+                        )
+                        setupSaveButton(context, views, appWidgetId, sentenceId)
+                    }
+                    
+                    setupMainClick(context, views, appWidgetId)
+                    
+                    // Update on main thread
+                    CoroutineScope(Dispatchers.Main).launch {
+                        appWidgetManager.updateAppWidget(appWidgetId, views)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GermanLearningWidget", "Error updating widgets with sentence", e)
+            }
+        }
+    }
+    
+    /**
+     * Handle save/unsave sentence action.
+     */
     private fun handleSaveSentence(context: Context, widgetId: Int, sentenceId: Long) {
-        android.util.Log.d("GermanLearningWidget", "handleSaveSentence called for widget $widgetId, sentence $sentenceId")
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
                 val currentSentence = currentSentences[widgetId]
                 
-                android.util.Log.d("GermanLearningWidget", "Current sentence: $currentSentence")
-                
                 if (currentSentence != null && currentSentence.id == sentenceId) {
                     val isNowSaved = sentenceRepository.toggleSaveSentence(currentSentence)
                     
-                    android.util.Log.d("GermanLearningWidget", "Toggle result: $isNowSaved")
-                    
-                    // Update the widget button state
+                    // Update just the save button
                     val appWidgetManager = AppWidgetManager.getInstance(context)
                     val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
                     
-                    // Preserve existing content
+                    // Apply current customizations
+                    WidgetCustomizationHelper.applyCustomizations(
+                        context, views, WidgetType.MAIN, R.id.widget_container
+                    )
+                    
+                    // Restore current content
                     views.setTextViewText(R.id.widget_german_text, currentSentence.germanText)
                     views.setTextViewText(R.id.widget_translation, currentSentence.translation)
                     views.setTextViewText(R.id.widget_topic, currentSentence.topic)
                     
-                    // Update button state
-                    val buttonResource = if (isNowSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
-                    views.setImageViewResource(R.id.widget_save_button, buttonResource)
-                    
-                    android.util.Log.d("GermanLearningWidget", "Setting button resource: $buttonResource")
-                    
-                    // Create intent to open the app when widget is tapped
-                    val openAppIntent = Intent(context, MainActivity::class.java)
-                    val pendingIntent = PendingIntent.getActivity(
-                        context,
-                        0,
-                        openAppIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    // Update save button
+                    views.setImageViewResource(
+                        R.id.widget_save_button,
+                        if (isNowSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
                     )
-                    views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
                     
-                    // Recreate the save button click intent
-                    val saveIntent = Intent(context, GermanLearningWidget::class.java).apply {
-                        action = ACTION_SAVE_SENTENCE
-                        putExtra(EXTRA_WIDGET_ID, widgetId)
-                        putExtra(EXTRA_SENTENCE_ID, sentenceId)
+                    setupMainClick(context, views, widgetId)
+                    setupSaveButton(context, views, widgetId, sentenceId)
+                    
+                    CoroutineScope(Dispatchers.Main).launch {
+                        appWidgetManager.updateAppWidget(widgetId, views)
                     }
-                    val savePendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        widgetId,
-                        saveIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-                    views.setOnClickPendingIntent(R.id.widget_save_button, savePendingIntent)
-                    
-                    appWidgetManager.updateAppWidget(widgetId, views)
-                    android.util.Log.d("GermanLearningWidget", "Widget updated successfully")
-                } else {
-                    android.util.Log.w("GermanLearningWidget", "Current sentence is null or ID doesn't match")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("GermanLearningWidget", "Error in handleSaveSentence: ${e.message}", e)
+                android.util.Log.e("GermanLearningWidget", "Error handling save sentence", e)
             }
         }
     }

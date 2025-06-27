@@ -10,6 +10,7 @@ import android.widget.RemoteViews
 import com.germanleraningwidget.MainActivity
 import com.germanleraningwidget.R
 import com.germanleraningwidget.data.model.GermanSentence
+import com.germanleraningwidget.data.model.WidgetType
 import com.germanleraningwidget.data.repository.SentenceRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,11 +60,49 @@ class BookmarksHeroWidget : AppWidgetProvider() {
     }
 
     private fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-        android.util.Log.d("BookmarksHeroWidget", "Updating hero bookmarks widget $appWidgetId")
-        
-        val views = RemoteViews(context.packageName, R.layout.widget_bookmarks_hero)
-        
-        // Create intent to open the app when widget container is tapped
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_bookmarks_hero)
+                
+                // Apply customizations using centralized helper
+                val customization = WidgetCustomizationHelper.applyCustomizations(
+                    context, views, WidgetType.HERO, R.id.widget_hero_container
+                )
+                
+                // Set up main container click
+                setupMainClick(context, views, appWidgetId)
+                
+                // Load bookmarks
+                val sentenceRepository = SentenceRepository.getInstance(context)
+                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                
+                if (bookmarkedSentences.isEmpty()) {
+                    showEmptyState(views, customization)
+                } else {
+                    // Get current index for this widget
+                    val currentIndex = currentIndices.getOrDefault(appWidgetId, 0)
+                    val validIndex = if (currentIndex >= bookmarkedSentences.size) 0 else currentIndex
+                    currentIndices[appWidgetId] = validIndex
+                    
+                    updateHeroContent(context, views, bookmarkedSentences, validIndex, appWidgetId, customization)
+                }
+                
+                // Update the widget on the main thread
+                CoroutineScope(Dispatchers.Main).launch {
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("BookmarksHeroWidget", "Error updating widget $appWidgetId", e)
+                showErrorState(context, appWidgetManager, appWidgetId)
+            }
+        }
+    }
+    
+    /**
+     * Set up main container click to open bookmarks screen.
+     */
+    private fun setupMainClick(context: Context, views: RemoteViews, appWidgetId: Int) {
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             putExtra(MainActivity.EXTRA_NAVIGATE_TO, "bookmarks")
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -75,194 +114,80 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widget_hero_container, pendingIntent)
-        
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val sentenceRepository = SentenceRepository.getInstance(context)
-                val bookmarkedSentences = sentenceRepository.getSavedSentences()
-                
-                android.util.Log.d("BookmarksHeroWidget", "Found ${bookmarkedSentences.size} bookmarked sentences")
-                
-                if (bookmarkedSentences.isEmpty()) {
-                    showEmptyState(views)
-                } else {
-                    // Get current index for this widget
-                    val currentIndex = currentIndices.getOrDefault(appWidgetId, 0)
-                    val validIndex = if (currentIndex >= bookmarkedSentences.size) 0 else currentIndex
-                    currentIndices[appWidgetId] = validIndex
-                    
-                    updateHeroLayout(context, views, bookmarkedSentences, validIndex, appWidgetId)
-                }
-                
-                // Update the widget on the main thread
-                CoroutineScope(Dispatchers.Main).launch {
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                    android.util.Log.d("BookmarksHeroWidget", "Hero widget $appWidgetId updated successfully")
-                }
-                
-            } catch (e: Exception) {
-                android.util.Log.e("BookmarksHeroWidget", "Error updating widget $appWidgetId", e)
-                showErrorState(views)
-                
-                CoroutineScope(Dispatchers.Main).launch {
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                }
-            }
-        }
     }
     
-    private fun showEmptyState(views: RemoteViews) {
-        // Hide main content and show empty state
-        views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.GONE)
-        views.setInt(R.id.widget_hero_nav_buttons, "setVisibility", android.view.View.GONE)
-        views.setInt(R.id.widget_hero_empty_state, "setVisibility", android.view.View.VISIBLE)
-        
-        views.setTextViewText(R.id.widget_hero_empty_title, "No bookmarks yet")
-        views.setTextViewText(R.id.widget_hero_empty_subtitle, "Save sentences from the learning widget to see them here")
-    }
-    
-    private fun showErrorState(views: RemoteViews) {
-        views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.GONE)
-        views.setInt(R.id.widget_hero_nav_buttons, "setVisibility", android.view.View.GONE)
-        views.setInt(R.id.widget_hero_empty_state, "setVisibility", android.view.View.VISIBLE)
-        
-        views.setTextViewText(R.id.widget_hero_empty_title, "Error loading bookmarks")
-        views.setTextViewText(R.id.widget_hero_empty_subtitle, "Tap to open app and try again")
-    }
-    
-    private fun updateHeroLayout(
+    /**
+     * Update hero content with current sentence and navigation.
+     */
+    private fun updateHeroContent(
         context: Context,
         views: RemoteViews,
         bookmarkedSentences: List<GermanSentence>,
         currentIndex: Int,
-        appWidgetId: Int
+        appWidgetId: Int,
+        customization: com.germanleraningwidget.data.model.WidgetCustomization
     ) {
-        // Show main content layout
-        views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.VISIBLE)
-        views.setInt(R.id.widget_hero_empty_state, "setVisibility", android.view.View.GONE)
-        
         val currentSentence = bookmarkedSentences[currentIndex]
         val totalCount = bookmarkedSentences.size
         
-        // Update main hero content
+        // Update counter
+        views.setTextViewText(R.id.widget_hero_counter, "${currentIndex + 1}/$totalCount")
+        
+        // Update main content
         views.setTextViewText(R.id.widget_hero_german_text, currentSentence.germanText)
         views.setTextViewText(R.id.widget_hero_translation, currentSentence.translation)
         views.setTextViewText(R.id.widget_hero_topic, currentSentence.topic)
-        views.setTextViewText(R.id.widget_hero_counter, "${currentIndex + 1}/$totalCount")
         
-        // Update side previews (if more than one bookmark exists)
-        if (totalCount > 1) {
-            views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.VISIBLE)
-            
-            // Left preview (previous item)
-            val prevIndex = if (currentIndex == 0) totalCount - 1 else currentIndex - 1
-            val prevSentence = bookmarkedSentences[prevIndex]
-            views.setTextViewText(R.id.widget_hero_prev_text, truncateText(prevSentence.germanText, 25))
-            
-            // Right preview (next item)  
-            val nextIndex = (currentIndex + 1) % totalCount
-            val nextSentence = bookmarkedSentences[nextIndex]
-            views.setTextViewText(R.id.widget_hero_next_text, truncateText(nextSentence.germanText, 25))
-            
-                    // Set up preview click handlers
-        setupPreviewClickHandlers(context, views, appWidgetId, prevIndex, nextIndex)
+        // Apply text customizations with larger base sizes for hero widget
+        WidgetCustomizationHelper.applyTextCustomizations(
+            views, customization,
+            R.id.widget_hero_german_text, R.id.widget_hero_translation,
+            20f, 16f // Larger base sizes for hero widget
+        )
         
-        // Update progress dots display
-        updateProgressDots(views, currentIndex, totalCount)
-        } else {
-            views.setInt(R.id.widget_hero_previews, "setVisibility", android.view.View.GONE)
-        }
+        // Update preview texts and dots
+        updatePreviewTexts(views, bookmarkedSentences, currentIndex)
+        updatePreviewDots(views, currentIndex, totalCount)
         
         // Set up navigation buttons
-        setupNavigationButtons(context, views, appWidgetId, totalCount > 1)
-        
-        // Set up action buttons
-        setupActionButtons(context, views, appWidgetId, currentSentence.id)
-        
-
+        setupNavigationButtons(context, views, appWidgetId, currentSentence.id)
     }
     
-    private fun setupPreviewClickHandlers(
-        context: Context,
-        views: RemoteViews,
-        appWidgetId: Int,
-        prevIndex: Int,
-        nextIndex: Int
-    ) {
-        // Previous preview click
-        val prevIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
-            action = ACTION_SELECT_BOOKMARK
-            putExtra(EXTRA_WIDGET_ID, appWidgetId)
-            putExtra(EXTRA_TARGET_INDEX, prevIndex)
-        }
-        val prevPendingIntent = PendingIntent.getBroadcast(
-            context,
-            appWidgetId * 1000 + prevIndex,
-            prevIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_hero_prev_text, prevPendingIntent)
-        
-        // Next preview click
-        val nextIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
-            action = ACTION_SELECT_BOOKMARK
-            putExtra(EXTRA_WIDGET_ID, appWidgetId)
-            putExtra(EXTRA_TARGET_INDEX, nextIndex)
-        }
-        val nextPendingIntent = PendingIntent.getBroadcast(
-            context,
-            appWidgetId * 1000 + nextIndex,
-            nextIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(R.id.widget_hero_next_text, nextPendingIntent)
-    }
-    
+    /**
+     * Set up navigation buttons for the hero widget.
+     */
     private fun setupNavigationButtons(
-        context: Context,
-        views: RemoteViews,
-        appWidgetId: Int,
-        hasMultipleItems: Boolean
-    ) {
-        if (hasMultipleItems) {
-            views.setInt(R.id.widget_hero_nav_buttons, "setVisibility", android.view.View.VISIBLE)
-            
-            // Previous button
-            val prevIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
-                action = ACTION_PREVIOUS_BOOKMARK
-                putExtra(EXTRA_WIDGET_ID, appWidgetId)
-            }
-            val prevPendingIntent = PendingIntent.getBroadcast(
-                context,
-                appWidgetId * 100,
-                prevIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_hero_prev_button, prevPendingIntent)
-            
-            // Next button
-            val nextIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
-                action = ACTION_NEXT_BOOKMARK
-                putExtra(EXTRA_WIDGET_ID, appWidgetId)
-            }
-            val nextPendingIntent = PendingIntent.getBroadcast(
-                context,
-                appWidgetId * 100 + 1,
-                nextIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_hero_next_button, nextPendingIntent)
-        } else {
-            views.setInt(R.id.widget_hero_nav_buttons, "setVisibility", android.view.View.GONE)
-        }
-    }
-    
-    private fun setupActionButtons(
         context: Context,
         views: RemoteViews,
         appWidgetId: Int,
         sentenceId: Long
     ) {
+        // Previous button
+        val prevIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
+            action = ACTION_PREVIOUS_BOOKMARK
+            putExtra(EXTRA_WIDGET_ID, appWidgetId)
+        }
+        val prevPendingIntent = PendingIntent.getBroadcast(
+            context,
+            appWidgetId * 100,
+            prevIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_hero_prev_button, prevPendingIntent)
+        
+        // Next button
+        val nextIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
+            action = ACTION_NEXT_BOOKMARK
+            putExtra(EXTRA_WIDGET_ID, appWidgetId)
+        }
+        val nextPendingIntent = PendingIntent.getBroadcast(
+            context,
+            appWidgetId * 100 + 1,
+            nextIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.widget_hero_next_button, nextPendingIntent)
+        
         // Remove bookmark button
         val removeIntent = Intent(context, BookmarksHeroWidget::class.java).apply {
             action = ACTION_REMOVE_BOOKMARK
@@ -278,7 +203,87 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_hero_remove_button, removePendingIntent)
     }
     
-    private fun updateProgressDots(views: RemoteViews, currentIndex: Int, totalCount: Int) {
+    /**
+     * Show empty state when no bookmarks exist.
+     */
+    private fun showEmptyState(
+        views: RemoteViews,
+        customization: com.germanleraningwidget.data.model.WidgetCustomization
+    ) {
+        views.setTextViewText(R.id.widget_hero_counter, "0/0")
+        views.setTextViewText(R.id.widget_hero_german_text, "No bookmarks yet")
+        views.setTextViewText(R.id.widget_hero_translation, "Save sentences to see them here")
+        views.setTextViewText(R.id.widget_hero_topic, "")
+        
+        // Apply text customizations to empty state
+        WidgetCustomizationHelper.applyTextCustomizations(
+            views, customization,
+            R.id.widget_hero_german_text, R.id.widget_hero_translation,
+            20f, 16f // Hero widget base sizes
+        )
+        
+        // Clear preview texts and dots
+        views.setTextViewText(R.id.widget_hero_prev_text, "")
+        views.setTextViewText(R.id.widget_hero_next_text, "")
+        views.setTextViewText(R.id.widget_hero_dots, "")
+    }
+    
+    /**
+     * Show error state.
+     */
+    private fun showErrorState(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_bookmarks_hero)
+                
+                // Apply basic customization
+                WidgetCustomizationHelper.applyCustomizations(
+                    context, views, WidgetType.HERO, R.id.widget_hero_container
+                )
+                
+                views.setTextViewText(R.id.widget_hero_counter, "0/0")
+                views.setTextViewText(R.id.widget_hero_german_text, "Error loading")
+                views.setTextViewText(R.id.widget_hero_translation, "Tap to open app")
+                views.setTextViewText(R.id.widget_hero_topic, "")
+                views.setTextViewText(R.id.widget_hero_prev_text, "")
+                views.setTextViewText(R.id.widget_hero_next_text, "")
+                views.setTextViewText(R.id.widget_hero_dots, "")
+                
+                setupMainClick(context, views, appWidgetId)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e: Exception) {
+                android.util.Log.e("BookmarksHeroWidget", "Error showing error state", e)
+            }
+        }
+    }
+    
+    /**
+     * Update preview texts for adjacent bookmarks.
+     */
+    private fun updatePreviewTexts(
+        views: RemoteViews,
+        bookmarkedSentences: List<GermanSentence>,
+        currentIndex: Int
+    ) {
+        val totalCount = bookmarkedSentences.size
+        
+        if (totalCount > 1) {
+            // Previous text
+            val prevIndex = if (currentIndex == 0) totalCount - 1 else currentIndex - 1
+            val prevText = bookmarkedSentences[prevIndex].germanText.take(20) + "..."
+            views.setTextViewText(R.id.widget_hero_prev_text, prevText)
+            
+            // Next text
+            val nextIndex = if (currentIndex == totalCount - 1) 0 else currentIndex + 1
+            val nextText = bookmarkedSentences[nextIndex].germanText.take(20) + "..."
+            views.setTextViewText(R.id.widget_hero_next_text, nextText)
+        } else {
+            views.setTextViewText(R.id.widget_hero_prev_text, "")
+            views.setTextViewText(R.id.widget_hero_next_text, "")
+        }
+    }
+    
+    private fun updatePreviewDots(views: RemoteViews, currentIndex: Int, totalCount: Int) {
         // Update progress dots display using text symbols
         val dotsText = when {
             totalCount <= 1 -> "●"
@@ -296,14 +301,6 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             }
         }
         views.setTextViewText(R.id.widget_hero_dots, dotsText)
-    }
-    
-    private fun truncateText(text: String, maxLength: Int): String {
-        return if (text.length > maxLength) {
-            text.take(maxLength - 3) + "..."
-        } else {
-            text
-        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
