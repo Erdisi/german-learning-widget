@@ -6,15 +6,12 @@ package com.germanleraningwidget.data.model
  * 
  * Features:
  * - Notification preferences
- * - Accessibility settings
  * - UI preferences
  * - Performance settings
  */
 data class AppSettings(
     val notificationsEnabled: Boolean = true,
     val learningRemindersEnabled: Boolean = true,
-    val hapticFeedbackEnabled: Boolean = true,
-    val textSizeScale: Float = 1.0f, // 0.8f to 1.5f range
     val isDarkModeEnabled: Boolean? = null, // null = follow system
     val isFirstLaunch: Boolean = true,
     val lastVersionCode: Int = 0
@@ -24,10 +21,7 @@ data class AppSettings(
      * Validates app settings.
      */
     fun validate(): ValidationResult {
-        if (textSizeScale < 0.5f || textSizeScale > 2.0f) {
-            return ValidationResult.Error("Text size scale must be between 0.5 and 2.0")
-        }
-        
+        // All current settings are boolean or nullable boolean, no validation needed
         return ValidationResult.Success
     }
     
@@ -40,23 +34,8 @@ data class AppSettings(
      * Create a copy with safe defaults.
      */
     fun withSafeDefaults(): AppSettings {
-        val safeTextScale = textSizeScale.coerceIn(0.5f, 2.0f)
-        
-        return if (safeTextScale == textSizeScale) {
-            this
-        } else {
-            copy(textSizeScale = safeTextScale)
-        }
-    }
-    
-    /**
-     * Get text size description for UI.
-     */
-    val textSizeDescription: String get() = when {
-        textSizeScale <= 0.8f -> "Small"
-        textSizeScale <= 1.0f -> "Default"
-        textSizeScale <= 1.2f -> "Large"
-        else -> "Extra Large"
+        // All current properties have safe defaults, no modifications needed
+        return this
     }
     
     companion object {
@@ -64,14 +43,6 @@ data class AppSettings(
          * Create default app settings.
          */
         fun createDefault(): AppSettings = AppSettings()
-        
-        /**
-         * Create settings for accessibility needs.
-         */
-        fun createAccessible(): AppSettings = AppSettings(
-            hapticFeedbackEnabled = true,
-            textSizeScale = 1.2f
-        )
     }
     
     /**

@@ -23,6 +23,7 @@ import com.germanleraningwidget.data.model.AppSettings
 import com.germanleraningwidget.data.model.UserPreferences
 import com.germanleraningwidget.data.repository.AppSettingsRepository
 import com.germanleraningwidget.data.repository.UserPreferencesRepository
+import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +54,6 @@ fun SettingsScreen(
     // UI state
     var isLoading by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf<String?>(null) }
-    var showTextSizeDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
 
     // Helper function to update settings with haptic feedback
@@ -61,9 +61,7 @@ fun SettingsScreen(
         scope.launch {
             try {
                 isLoading = true
-                if (appSettings.hapticFeedbackEnabled) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                }
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 updateAction()
                 successMessage = successMsg
             } catch (e: Exception) {
@@ -102,9 +100,9 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
+                .padding(horizontal = UnifiedDesign.ContentPadding),
+            verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap),
+            contentPadding = PaddingValues(vertical = UnifiedDesign.ContentPadding)
         ) {
             // Learning Preferences Section
             item {
@@ -114,7 +112,7 @@ fun SettingsScreen(
                 ) {
                     SettingsItem(
                         title = "Learning Preferences",
-                        subtitle = "Level: ${userPreferences.germanLevel.displayName} • ${userPreferences.selectedTopics.size} topics",
+                        subtitle = "Levels: ${userPreferences.selectedGermanLevels.joinToString(", ")} (Primary: ${userPreferences.primaryGermanLevel}) • ${userPreferences.selectedTopics.size} topics",
                         icon = Icons.Filled.Tune,
                         onClick = onNavigateToLearningPreferences,
                         showArrow = true
@@ -171,53 +169,46 @@ fun SettingsScreen(
                 }
             }
 
-            // Accessibility & Experience Section
+            // Customization Section
             item {
                 SettingsSection(
-                    title = "Accessibility & Experience",
-                    icon = Icons.Filled.Accessibility
-                ) {
-                    SettingsToggleItem(
-                        title = "Haptic Feedback",
-                        subtitle = "Vibrate on interactions",
-                        icon = Icons.Filled.Vibration,
-                        checked = appSettings.hapticFeedbackEnabled,
-                        onCheckedChange = { enabled ->
-                            updateSettingWithFeedback(
-                                { appSettingsRepository.updateHapticFeedbackEnabled(enabled) },
-                                if (enabled) "Haptic feedback enabled" else "Haptic feedback disabled"
-                            )
-                        }
-                    )
-                    
-                    SettingsItem(
-                        title = "Text Size",
-                        subtitle = "Current: ${appSettings.textSizeDescription}",
-                        icon = Icons.Filled.FormatSize,
-                        onClick = { showTextSizeDialog = true },
-                        showArrow = true
-                    )
-                }
-            }
-
-            // Widget Customization Section
-            item {
-                SettingsSection(
-                    title = "Widget Customization",
-                    icon = Icons.Filled.Widgets
+                    title = "Customization",
+                    icon = Icons.Filled.Palette
                 ) {
                     SettingsItem(
-                        title = "Customize Widgets",
+                        title = "Widget Customization",
                         subtitle = "Personalize backgrounds, text sizes, and contrast",
-                        icon = Icons.Filled.Palette,
+                        icon = Icons.Filled.Widgets,
                         onClick = {
-                            if (appSettings.hapticFeedbackEnabled) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             onNavigateToWidgetCustomization()
                         },
                         showArrow = true
                     )
+                    
+                    SettingsToggleItem(
+                        title = "Theme",
+                        subtitle = if (appSettings.isDarkModeEnabled == true) {
+                            "Dark mode enabled"
+                        } else if (appSettings.isDarkModeEnabled == false) {
+                            "Light mode enabled"
+                        } else {
+                            "Following system theme"
+                        },
+                        icon = if (appSettings.isDarkModeEnabled == true) {
+                            Icons.Filled.Brightness4
+                        } else {
+                            Icons.Filled.Brightness7
+                        },
+                        checked = appSettings.isDarkModeEnabled ?: false,
+                        onCheckedChange = { enabled ->
+                            updateSettingWithFeedback(
+                                { appSettingsRepository.updateDarkModeEnabled(enabled) },
+                                if (enabled) "Dark mode enabled" else "Light mode enabled"
+                            )
+                        }
+                    )
+
                 }
             }
 
@@ -257,11 +248,6 @@ fun SettingsScreen(
                     )
                 }
             }
-
-            // Add some bottom padding
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
         }
     }
 
@@ -277,35 +263,20 @@ fun SettingsScreen(
             contentAlignment = Alignment.BottomCenter
         ) {
             Card(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     text = message,
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
-    }
-
-    // Text Size Dialog
-    if (showTextSizeDialog) {
-        TextSizeDialog(
-            currentScale = appSettings.textSizeScale,
-            onScaleSelected = { scale ->
-                updateSettingWithFeedback(
-                    { appSettingsRepository.updateTextSizeScale(scale) },
-                    "Text size updated to ${AppSettings(textSizeScale = scale).textSizeDescription}"
-                )
-                showTextSizeDialog = false
-            },
-            onDismiss = { showTextSizeDialog = false }
-        )
     }
 
     // About Dialog
@@ -315,60 +286,6 @@ fun SettingsScreen(
             onDismiss = { showAboutDialog = false }
         )
     }
-}
-
-@Composable
-private fun TextSizeDialog(
-    currentScale: Float,
-    onScaleSelected: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val scales = listOf(
-        0.8f to "Small",
-        1.0f to "Default", 
-        1.2f to "Large",
-        1.5f to "Extra Large"
-    )
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Text Size") },
-        text = {
-            Column {
-                Text(
-                    "Choose your preferred text size for better readability.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                
-                scales.forEach { (scale, name) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = scale == currentScale,
-                            onClick = { onScaleSelected(scale) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = MaterialTheme.typography.bodyLarge.fontSize * scale
-                            )
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
 }
 
 @Composable
@@ -397,14 +314,16 @@ private fun AboutDialog(
                 Text(
                     "Learn German through innovative widget-based delivery. Get contextual German sentences directly on your home screen for passive learning throughout daily device usage.",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 20.dp)
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                 
-                Text("Version: ${versionInfo.versionName}", style = MaterialTheme.typography.bodySmall)
-                Text("Build: ${versionInfo.versionCode}", style = MaterialTheme.typography.bodySmall)
-                Text("Package: ${versionInfo.packageName}", style = MaterialTheme.typography.bodySmall)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Version: ${versionInfo.versionName}", style = MaterialTheme.typography.bodySmall)
+                    Text("Build: ${versionInfo.versionCode}", style = MaterialTheme.typography.bodySmall)
+                    Text("Package: ${versionInfo.packageName}", style = MaterialTheme.typography.bodySmall)
+                }
             }
         },
         confirmButton = {
@@ -425,7 +344,7 @@ private fun SettingsSection(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -434,7 +353,7 @@ private fun SettingsSection(
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
@@ -443,18 +362,11 @@ private fun SettingsSection(
             )
         }
         
-        Card(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ),
-            shape = RoundedCornerShape(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(4.dp)
-            ) {
-                content()
-            }
+            content()
         }
     }
 }
@@ -468,13 +380,9 @@ private fun SettingsItem(
     showArrow: Boolean = false,
     isDestructive: Boolean = false
 ) {
-    Card(
+    UnifiedCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(8.dp)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -514,7 +422,7 @@ private fun SettingsItem(
                         text = it,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }
@@ -540,12 +448,8 @@ private fun SettingsToggleItem(
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(8.dp)
+    UnifiedCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -589,7 +493,7 @@ private fun SettingsToggleItem(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         },
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
             }

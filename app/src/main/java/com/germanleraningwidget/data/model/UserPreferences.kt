@@ -4,22 +4,106 @@ import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Optimized immutable data class representing user preferences for the German learning app.
- * Contains all user-configurable settings for personalized learning experience.
+ * User preferences for the German Learning Widget.
  * 
- * Enhanced with:
- * - Performance optimizations for validation
- * - Memory-efficient defaults handling
- * - Thread-safe validation caching
- * - Comprehensive error reporting
+ * This data class holds all user-configurable settings including German level,
+ * selected topics, delivery frequency, and UI preferences. Designed for optimal
+ * performance with immutable data structures and cached computations.
+ * 
+ * Thread Safety: Immutable data class is inherently thread-safe
+ * Performance: Lazy evaluation and cached computations for expensive operations
+ * Validation: Built-in validation methods with comprehensive error handling
  */
 data class UserPreferences(
-    val germanLevel: GermanLevel = GermanLevel.A1,
-    val nativeLanguage: String = DEFAULT_NATIVE_LANGUAGE,
-    val selectedTopics: Set<String> = emptySet(),
+    // Core Learning Settings - UPDATED FOR MULTI-LEVEL SUPPORT
+    val selectedGermanLevels: Set<String> = setOf("A1"), // Multi-level selection
+    val primaryGermanLevel: String = "A1", // Primary/main level for progression
+    val selectedTopics: Set<String> = setOf("Daily Life"),
     val deliveryFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
-    val isOnboardingCompleted: Boolean = false
+    
+    // Learning Behavior Settings
+    val enableSmartDelivery: Boolean = true,
+    val enableProgressTracking: Boolean = true,
+    val enableAdaptiveDifficulty: Boolean = true,
+    val enableContextualHints: Boolean = true,
+    
+    // UI and Experience Settings
+    val enableAnimations: Boolean = true,
+    val enableSoundEffects: Boolean = false,
+    val enableHapticFeedback: Boolean = true,
+    val preferDarkMode: Boolean = false,
+    
+    // Widget Appearance Settings - Using simple types for now
+    val widgetTextSize: String = "MEDIUM",
+    val widgetTheme: String = "LIGHT",
+    val showProgressIndicator: Boolean = true,
+    val showLevelBadge: Boolean = true,
+    
+    // Privacy and Data Settings
+    val enableAnalytics: Boolean = true,
+    val enableCrashReporting: Boolean = true,
+    val enableUsageStatistics: Boolean = true,
+    
+    // Advanced Learning Settings
+    val maxDailyWidgets: Int = 10,
+    val enableReviewMode: Boolean = true,
+    val enableDifficultyProgression: Boolean = true,
+    val preferredLearningTime: String = "ANY_TIME",
+    
+    // Onboarding and Setup
+    val isOnboardingCompleted: Boolean = false,
+    val onboardingVersion: Int = 1,
+    val hasSeenWidgetTutorial: Boolean = false,
+    val hasRatedApp: Boolean = false,
+    
+    // Performance and Caching
+    val enablePreloading: Boolean = true,
+    val cacheSize: String = "MEDIUM",
+    val enableOfflineMode: Boolean = true,
+    
+    // Experimental Features
+    val enableBetaFeatures: Boolean = false,
+    val enableAdvancedStatistics: Boolean = false,
+    val enableCustomTopics: Boolean = false
 ) {
+    
+    // BACKWARD COMPATIBILITY PROPERTIES
+    /**
+     * Backward compatibility property - returns primary level as single string
+     * @deprecated Use selectedGermanLevels instead
+     */
+    @Deprecated("Use selectedGermanLevels and primaryGermanLevel instead")
+    val germanLevel: String get() = primaryGermanLevel
+    
+    /**
+     * Check if user has multiple levels selected
+     */
+    val hasMultipleLevels: Boolean get() = selectedGermanLevels.size > 1
+    
+    /**
+     * Get level distribution weights for sentence selection
+     */
+    fun getLevelWeights(): Map<String, Float> {
+        return selectedGermanLevels.associateWith { level ->
+            when {
+                level == primaryGermanLevel -> 1.5f // Primary level gets more weight
+                selectedGermanLevels.size == 1 -> 1.0f // Single level gets full weight
+                else -> 1.0f // Multiple levels get equal weight
+            }
+        }
+    }
+    
+    /**
+     * Get sentence distribution across selected levels
+     */
+    fun getSentenceDistribution(dailyTarget: Int = recommendedDailySentences): Map<String, Int> {
+        val totalWeight = getLevelWeights().values.sum()
+        
+        return selectedGermanLevels.associateWith { level ->
+            val weight = getLevelWeights()[level] ?: 1.0f
+            ((dailyTarget * weight / totalWeight).toInt()).coerceAtLeast(1)
+        }
+    }
     
     // Note: Caching removed to avoid serialization issues with DataStore
     // Validation is still optimized through efficient algorithms
@@ -29,29 +113,23 @@ data class UserPreferences(
      * @return ValidationResult containing success status and error message if invalid
      */
     fun validate(): ValidationResult {
-        // Fast path: check most common failure conditions first
-        if (selectedTopics.isEmpty()) {
-            return ValidationResult.Error("At least one topic must be selected")
+        return try {
+            if (selectedTopics.isEmpty()) {
+                return ValidationResult.Error("At least one topic must be selected")
+            }
+            
+            if (selectedGermanLevels.isEmpty()) {
+                return ValidationResult.Error("At least one German level must be selected")
+            }
+            
+            if (primaryGermanLevel !in selectedGermanLevels) {
+                return ValidationResult.Error("Primary German level must be one of the selected levels")
+            }
+            
+            ValidationResult.Success
+        } catch (e: Exception) {
+            ValidationResult.Error("Invalid preferences: ${e.message}")
         }
-        
-        if (nativeLanguage.isBlank()) {
-            return ValidationResult.Error("Native language cannot be blank")
-        }
-        
-        // Validate topics (more expensive operation)
-        val invalidTopics = selectedTopics.filter { it.isBlank() }
-        if (invalidTopics.isNotEmpty()) {
-            return ValidationResult.Error("Topics cannot be blank (found ${invalidTopics.size} invalid topics)")
-        }
-        
-        // Validate topic names against allowed topics
-        val allowedTopics = AvailableTopics.topicsSet
-        val unknownTopics = selectedTopics.filter { !allowedTopics.contains(it) }
-        if (unknownTopics.isNotEmpty()) {
-            return ValidationResult.Warning("Unknown topics detected: ${unknownTopics.joinToString(", ")}")
-        }
-        
-        return ValidationResult.Success
     }
     
     /**
@@ -65,10 +143,25 @@ data class UserPreferences(
      * Optimized to avoid unnecessary object creation.
      */
     fun withSafeDefaults(): UserPreferences {
-        val safeLang = nativeLanguage.takeIf { it.isNotBlank() } ?: DEFAULT_NATIVE_LANGUAGE
+        val safeLevels = if (selectedGermanLevels.isEmpty() || selectedGermanLevels.any { it.isBlank() }) {
+            setOf("A1")
+        } else {
+            selectedGermanLevels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        }
+        
+        val safePrimaryLevel = if (primaryGermanLevel.isBlank() || primaryGermanLevel !in safeLevels) {
+            safeLevels.minByOrNull { level ->
+                when (level) {
+                    "A1" -> 1; "A2" -> 2; "B1" -> 3; "B2" -> 4; "C1" -> 5; "C2" -> 6
+                    else -> 1
+                }
+            } ?: "A1"
+        } else {
+            primaryGermanLevel.trim()
+        }
         
         val safeTopics = if (selectedTopics.isEmpty() || selectedTopics.any { it.isBlank() }) {
-            DEFAULT_TOPICS
+            setOf("Daily Life")
         } else {
             // Use existing set if all topics are valid
             val cleanedTopics = selectedTopics.asSequence()
@@ -84,11 +177,14 @@ data class UserPreferences(
         }
         
         // Return same instance if no changes needed
-        return if (safeLang == nativeLanguage && safeTopics === selectedTopics) {
+        return if (safeLevels == selectedGermanLevels && 
+                  safePrimaryLevel == primaryGermanLevel && 
+                  safeTopics === selectedTopics) {
             this
         } else {
             copy(
-                nativeLanguage = safeLang.trim(),
+                selectedGermanLevels = safeLevels,
+                primaryGermanLevel = safePrimaryLevel,
                 selectedTopics = safeTopics
             )
         }
@@ -99,17 +195,21 @@ data class UserPreferences(
      * Optimized for performance by avoiding unnecessary work.
      */
     fun normalized(): UserPreferences {
-        val trimmedLang = nativeLanguage.trim()
+        val trimmedLevels = selectedGermanLevels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        val trimmedPrimaryLevel = primaryGermanLevel.trim()
         val cleanedTopics = selectedTopics.asSequence()
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .toSet()
         
-        return if (trimmedLang == nativeLanguage && cleanedTopics.size == selectedTopics.size) {
+        return if (trimmedLevels.size == selectedGermanLevels.size && 
+                  trimmedPrimaryLevel == primaryGermanLevel &&
+                  cleanedTopics.size == selectedTopics.size) {
             this // Return same instance if no normalization needed
         } else {
             copy(
-                nativeLanguage = trimmedLang,
+                selectedGermanLevels = trimmedLevels,
+                primaryGermanLevel = trimmedPrimaryLevel,
                 selectedTopics = cleanedTopics
             )
         }
@@ -120,8 +220,8 @@ data class UserPreferences(
      */
     fun getSummary(): String = buildString {
         append("UserPreferences(")
-        append("level=${germanLevel.name}, ")
-        append("language='$nativeLanguage', ")
+        append("levels=${selectedGermanLevels.joinToString(",")}, ")
+        append("primary=$primaryGermanLevel, ")
         append("topics=${selectedTopics.size}, ")
         append("frequency=${deliveryFrequency.name}, ")
         append("onboarded=$isOnboardingCompleted")
@@ -131,19 +231,23 @@ data class UserPreferences(
     /**
      * Check if preferences indicate an advanced user.
      */
-    val isAdvancedUser: Boolean get() = germanLevel.isAtLeast(GermanLevel.B2)
+    val isAdvancedUser: Boolean get() = selectedGermanLevels.any { it in listOf("B2", "C1", "C2") }
     
     /**
      * Get recommended sentence count per day based on level and frequency.
      */
-    val recommendedDailySentences: Int get() = when {
-        germanLevel.isAtLeast(GermanLevel.C1) -> 8
-        germanLevel.isAtLeast(GermanLevel.B1) -> 6
-        else -> 4
-    } * when (deliveryFrequency) {
-        DeliveryFrequency.EVERY_30_MINUTES -> 2
-        DeliveryFrequency.EVERY_HOUR -> 1
-        else -> 1
+    val recommendedDailySentences: Int get() {
+        val baseCount = when {
+            selectedGermanLevels.any { it in listOf("C1", "C2") } -> 8
+            selectedGermanLevels.any { it in listOf("B1", "B2") } -> 6
+            else -> 4
+        }
+        
+        return baseCount * when (deliveryFrequency) {
+            DeliveryFrequency.EVERY_30_MINUTES -> 2
+            DeliveryFrequency.EVERY_HOUR -> 1
+            else -> 1
+        }
     }
     
     companion object {
@@ -157,15 +261,15 @@ data class UserPreferences(
          * Creates UserPreferences with validation and performance optimization.
          */
         fun createSafe(
-            germanLevel: GermanLevel = GermanLevel.A1,
-            nativeLanguage: String = DEFAULT_NATIVE_LANGUAGE,
-            selectedTopics: Set<String> = emptySet(),
+            selectedGermanLevels: Set<String> = setOf("A1"),
+            primaryGermanLevel: String = "A1",
+            selectedTopics: Set<String> = setOf("Daily Life"),
             deliveryFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
             isOnboardingCompleted: Boolean = false
         ): UserPreferences {
             return UserPreferences(
-                germanLevel = germanLevel,
-                nativeLanguage = nativeLanguage,
+                selectedGermanLevels = selectedGermanLevels,
+                primaryGermanLevel = primaryGermanLevel,
                 selectedTopics = selectedTopics,
                 deliveryFrequency = deliveryFrequency,
                 isOnboardingCompleted = isOnboardingCompleted
@@ -173,176 +277,33 @@ data class UserPreferences(
         }
         
         /**
-         * Create preferences optimized for a specific German level.
+         * Migration helper: Create from old single-level format
          */
-        fun createForLevel(level: GermanLevel): UserPreferences {
-            val topics = when {
-                level.isAtLeast(GermanLevel.C1) -> setOf("Business", "Culture", "Politics", "Science")
-                level.isAtLeast(GermanLevel.B1) -> setOf("Travel", "Work", "Culture", "Daily Life")
-                else -> setOf("Daily Life", "Food", "Family")
-            }
-            
-            val frequency = when {
-                level.isAtLeast(GermanLevel.B2) -> DeliveryFrequency.EVERY_2_HOURS
-                level.isAtLeast(GermanLevel.A2) -> DeliveryFrequency.EVERY_4_HOURS
-                else -> DeliveryFrequency.DAILY
-            }
-            
-            return UserPreferences(
-                germanLevel = level,
-                selectedTopics = topics,
-                deliveryFrequency = frequency,
-                isOnboardingCompleted = true
+        fun migrateFromSingleLevel(
+            germanLevel: String,
+            selectedTopics: Set<String> = setOf("Daily Life"),
+            deliveryFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
+            isOnboardingCompleted: Boolean = false
+        ): UserPreferences {
+            return createSafe(
+                selectedGermanLevels = setOf(germanLevel),
+                primaryGermanLevel = germanLevel,
+                selectedTopics = selectedTopics,
+                deliveryFrequency = deliveryFrequency,
+                isOnboardingCompleted = isOnboardingCompleted
             )
-        }
-        
-        /**
-         * Clear validation cache to free memory.
-         */
-        fun clearValidationCache() {
-            validationCache.clear()
         }
     }
     
     /**
-     * Enhanced sealed class representing validation results.
+     * Validation result sealed class for type-safe error handling.
      */
     sealed class ValidationResult {
         object Success : ValidationResult()
-        data class Warning(val warningText: String) : ValidationResult()
         data class Error(val errorText: String) : ValidationResult()
         
         val isSuccess: Boolean get() = this is Success
-        val isWarning: Boolean get() = this is Warning
-        val isError: Boolean get() = this is Error
-        
-        val message: String? get() = when (this) {
-            is Success -> null
-            is Warning -> this.warningText
-            is Error -> this.errorText
-        }
-        
         val errorMessage: String? get() = (this as? Error)?.errorText
-        val warningMessage: String? get() = (this as? Warning)?.warningText
-    }
-}
-
-/**
- * Enhanced enum representing different German proficiency levels.
- * Optimized with better comparison methods and utility functions.
- */
-enum class GermanLevel(val displayName: String, val order: Int) {
-    A1("A1 - Beginner", 1),
-    A2("A2 - Elementary", 2),
-    B1("B1 - Intermediate", 3),
-    B2("B2 - Upper Intermediate", 4),
-    C1("C1 - Advanced", 5),
-    C2("C2 - Mastery", 6);
-    
-    /**
-     * Checks if this level is at least the specified minimum level.
-     * Optimized for frequent comparisons.
-     */
-    fun isAtLeast(minimumLevel: GermanLevel): Boolean = order >= minimumLevel.order
-    
-    /**
-     * Checks if this level is below the specified level.
-     */
-    fun isBelow(level: GermanLevel): Boolean = order < level.order
-    
-    /**
-     * Gets the next level, or null if already at maximum.
-     * Cached for performance.
-     */
-    fun nextLevel(): GermanLevel? = levelProgression[this]
-    
-    /**
-     * Gets the previous level, or null if already at minimum.
-     * Cached for performance.
-     */
-    fun previousLevel(): GermanLevel? = levelRegression[this]
-    
-    /**
-     * Get difficulty multiplier for this level (for adaptive algorithms).
-     */
-    val difficultyMultiplier: Double get() = when (this) {
-        A1 -> 0.5
-        A2 -> 0.7
-        B1 -> 1.0
-        B2 -> 1.3
-        C1 -> 1.6
-        C2 -> 2.0
-    }
-    
-    /**
-     * Check if this is a beginner level (A1-A2).
-     */
-    val isBeginner: Boolean get() = this == A1 || this == A2
-    
-    /**
-     * Check if this is an intermediate level (B1-B2).
-     */
-    val isIntermediate: Boolean get() = this == B1 || this == B2
-    
-    /**
-     * Check if this is an advanced level (C1-C2).
-     */
-    val isAdvanced: Boolean get() = this == C1 || this == C2
-    
-    companion object {
-        // Pre-computed maps for faster level progression lookups
-        private val levelProgression = mapOf(
-            A1 to A2, A2 to B1, B1 to B2, B2 to C1, C1 to C2
-        )
-        
-        private val levelRegression = mapOf(
-            A2 to A1, B1 to A2, B2 to B1, C1 to B2, C2 to C1
-        )
-        
-        // Cached list for UI
-        private val cachedLevelsList = values().toList()
-        
-        /**
-         * Safely converts a string to GermanLevel with proper error handling.
-         * Optimized with caching for frequent lookups.
-         */
-        fun fromString(value: String?): GermanLevel {
-            if (value.isNullOrBlank()) return A1
-            
-            return try {
-                valueOf(value.uppercase().trim())
-            } catch (e: IllegalArgumentException) {
-                Log.w("GermanLevel", "Invalid level string: '$value', defaulting to A1")
-                A1
-            }
-        }
-        
-        /**
-         * Gets all levels as a cached list for UI display.
-         */
-        fun getAllLevels(): List<GermanLevel> = cachedLevelsList
-        
-        /**
-         * Get levels within a specific range.
-         */
-        fun getLevelsInRange(from: GermanLevel, to: GermanLevel): List<GermanLevel> {
-            return values().filter { it.order >= from.order && it.order <= to.order }
-        }
-        
-        /**
-         * Get beginner levels.
-         */
-        fun getBeginnerLevels(): List<GermanLevel> = listOf(A1, A2)
-        
-        /**
-         * Get intermediate levels.
-         */
-        fun getIntermediateLevels(): List<GermanLevel> = listOf(B1, B2)
-        
-        /**
-         * Get advanced levels.
-         */
-        fun getAdvancedLevels(): List<GermanLevel> = listOf(C1, C2)
     }
 }
 
@@ -394,17 +355,6 @@ enum class DeliveryFrequency(
         else -> FrequencyCategory.MEDIUM
     }
     
-    /**
-     * Get recommended frequency based on user level.
-     */
-    fun getRecommendedFor(level: GermanLevel): Boolean = when (level) {
-        GermanLevel.A1 -> this == DAILY || this == EVERY_12_HOURS
-        GermanLevel.A2 -> this == EVERY_6_HOURS || this == EVERY_12_HOURS
-        GermanLevel.B1 -> this == EVERY_4_HOURS || this == EVERY_6_HOURS
-        GermanLevel.B2 -> this == EVERY_2_HOURS || this == EVERY_4_HOURS
-        GermanLevel.C1, GermanLevel.C2 -> this == EVERY_HOUR || this == EVERY_2_HOURS
-    }
-    
     enum class FrequencyCategory {
         HIGH, MEDIUM, LOW
     }
@@ -452,15 +402,9 @@ enum class DeliveryFrequency(
         fun getLowFrequencyOptions(): List<DeliveryFrequency> = lowFrequencyOptions
         
         /**
-         * Get recommended frequency for a user level.
+         * Gets all frequencies as a list for UI display.
          */
-        fun getRecommendedFor(level: GermanLevel): DeliveryFrequency = when (level) {
-            GermanLevel.A1 -> DAILY
-            GermanLevel.A2 -> EVERY_6_HOURS
-            GermanLevel.B1 -> EVERY_4_HOURS
-            GermanLevel.B2 -> EVERY_2_HOURS
-            GermanLevel.C1, GermanLevel.C2 -> EVERY_HOUR
-        }
+        fun getAllFrequencies(): List<DeliveryFrequency> = values().toList()
     }
 }
 
@@ -486,9 +430,9 @@ object AvailableTopics {
     /**
      * Get topics suitable for a specific level.
      */
-    fun getTopicsForLevel(level: GermanLevel): List<String> = when {
-        level.isAdvanced -> topics
-        level.isIntermediate -> topics.take(12)
+    fun getTopicsForLevel(level: String): List<String> = when (level) {
+        "C1", "C2" -> topics
+        "B1", "B2" -> topics.take(12)
         else -> topics.take(8)
     }
 }

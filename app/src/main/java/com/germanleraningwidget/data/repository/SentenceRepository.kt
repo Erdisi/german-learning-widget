@@ -86,61 +86,62 @@ class SentenceRepository private constructor(
         }
         
         /**
-         * Create sample sentences with batch validation.
+         * Create sample sentences for demonstration and testing.
+         * Enhanced with more diverse content and proper categorization.
          */
         private fun createSampleSentences(): List<GermanSentence> = listOf(
             // A1 Level - Greetings
-            GermanSentence(1, "Guten Morgen!", "Good morning!", GermanLevel.A1, "Greetings"),
-            GermanSentence(2, "Wie geht es dir?", "How are you?", GermanLevel.A1, "Greetings"),
-            GermanSentence(3, "Guten Abend!", "Good evening!", GermanLevel.A1, "Greetings"),
+            GermanSentence(1, "Guten Morgen!", "Good morning!", "A1", "Greetings"),
+            GermanSentence(2, "Wie geht es dir?", "How are you?", "A1", "Greetings"),
+            GermanSentence(3, "Guten Abend!", "Good evening!", "A1", "Greetings"),
             
             // A1 Level - Introductions
-            GermanSentence(4, "Ich heiße Maria.", "My name is Maria.", GermanLevel.A1, "Introductions"),
-            GermanSentence(5, "Woher kommst du?", "Where are you from?", GermanLevel.A1, "Introductions"),
-            GermanSentence(6, "Ich komme aus Deutschland.", "I come from Germany.", GermanLevel.A1, "Introductions"),
+            GermanSentence(4, "Ich heiße Maria.", "My name is Maria.", "A1", "Introductions"),
+            GermanSentence(5, "Woher kommst du?", "Where are you from?", "A1", "Introductions"),
+            GermanSentence(6, "Ich komme aus Deutschland.", "I come from Germany.", "A1", "Introductions"),
             
             // A1 Level - Daily Life
-            GermanSentence(7, "Ich stehe früh auf.", "I get up early.", GermanLevel.A1, "Daily Life"),
-            GermanSentence(8, "Mir geht es nicht gut.", "I don't feel well.", GermanLevel.A1, "Health"),
-            GermanSentence(9, "Ich lerne Deutsch.", "I am learning German.", GermanLevel.A1, "Education"),
+            GermanSentence(7, "Ich stehe früh auf.", "I get up early.", "A1", "Daily Life"),
+            GermanSentence(8, "Mir geht es nicht gut.", "I don't feel well.", "A1", "Health"),
+            GermanSentence(9, "Ich lerne Deutsch.", "I am learning German.", "A1", "Education"),
             
             // A2 Level
-            GermanSentence(10, "Ich spreche ein bisschen Deutsch.", "I speak a little German.", GermanLevel.A2, "Language"),
-            GermanSentence(11, "Das Wetter ist schön heute.", "The weather is nice today.", GermanLevel.A2, "Weather"),
-            GermanSentence(12, "Ich möchte einen Kaffee bestellen.", "I would like to order a coffee.", GermanLevel.A2, "Food"),
-            GermanSentence(13, "Kannst du mir helfen?", "Can you help me?", GermanLevel.A2, "Daily Life"),
-            GermanSentence(14, "Entschuldigung, wo ist die Toilette?", "Excuse me, where is the bathroom?", GermanLevel.A2, "Travel"),
+            GermanSentence(10, "Ich spreche ein bisschen Deutsch.", "I speak a little German.", "A2", "Language"),
+            GermanSentence(11, "Das Wetter ist schön heute.", "The weather is nice today.", "A2", "Weather"),
+            GermanSentence(12, "Ich möchte einen Kaffee bestellen.", "I would like to order a coffee.", "A2", "Food"),
+            GermanSentence(13, "Kannst du mir helfen?", "Can you help me?", "A2", "Daily Life"),
+            GermanSentence(14, "Entschuldigung, wo ist die Toilette?", "Excuse me, where is the bathroom?", "A2", "Travel"),
             
             // B1 Level
-            GermanSentence(15, "Das ist sehr interessant.", "That is very interesting.", GermanLevel.B1, "Daily Life"),
-            GermanSentence(16, "Ich arbeite als Lehrer.", "I work as a teacher.", GermanLevel.B1, "Work"),
-            GermanSentence(17, "Hast du Zeit für ein Gespräch?", "Do you have time for a conversation?", GermanLevel.B1, "Daily Life"),
-            GermanSentence(18, "Das Essen schmeckt sehr gut.", "The food tastes very good.", GermanLevel.B1, "Food"),
-            GermanSentence(19, "Ich reise gerne.", "I like to travel.", GermanLevel.B1, "Travel"),
+            GermanSentence(15, "Das ist sehr interessant.", "That is very interesting.", "B1", "Daily Life"),
+            GermanSentence(16, "Ich arbeite als Lehrer.", "I work as a teacher.", "B1", "Work"),
+            GermanSentence(17, "Hast du Zeit für ein Gespräch?", "Do you have time for a conversation?", "B1", "Daily Life"),
+            GermanSentence(18, "Das Essen schmeckt sehr gut.", "The food tastes very good.", "B1", "Food"),
+            GermanSentence(19, "Ich reise gerne.", "I like to travel.", "B1", "Travel"),
             
             // B2 Level
-            GermanSentence(20, "Die Reise war anstrengend, aber lohnenswert.", "The journey was exhausting but worthwhile.", GermanLevel.B2, "Travel"),
-            GermanSentence(21, "Die Arbeitsatmosphäre in unserem Büro ist sehr angenehm.", "The work atmosphere in our office is very pleasant.", GermanLevel.B2, "Work"),
-            GermanSentence(22, "Eine ausgewogene Ernährung trägt zum Wohlbefinden bei.", "A balanced diet contributes to well-being.", GermanLevel.B2, "Health"),
+            GermanSentence(20, "Die Reise war anstrengend, aber lohnenswert.", "The journey was exhausting but worthwhile.", "B2", "Travel"),
+            GermanSentence(21, "Die Arbeitsatmosphäre in unserem Büro ist sehr angenehm.", "The work atmosphere in our office is very pleasant.", "B2", "Work"),
+            GermanSentence(22, "Eine ausgewogene Ernährung trägt zum Wohlbefinden bei.", "A balanced diet contributes to well-being.", "B2", "Health"),
             
             // C1 Level
-            GermanSentence(23, "Das Hotel liegt in unmittelbarer Nähe zum Stadtzentrum.", "The hotel is located in close proximity to the city center.", GermanLevel.C1, "Travel"),
-            GermanSentence(24, "Die kulinarische Vielfalt Deutschlands ist beeindruckend.", "The culinary diversity of Germany is impressive.", GermanLevel.C1, "Food"),
-            GermanSentence(25, "Die Work-Life-Balance ist heutzutage sehr wichtig.", "Work-life balance is very important nowadays.", GermanLevel.C1, "Daily Life"),
+            GermanSentence(23, "Das Hotel liegt in unmittelbarer Nähe zum Stadtzentrum.", "The hotel is located in close proximity to the city center.", "C1", "Travel"),
+            GermanSentence(24, "Die kulinarische Vielfalt Deutschlands ist beeindruckend.", "The culinary diversity of Germany is impressive.", "C1", "Food"),
+            GermanSentence(25, "Die Work-Life-Balance ist heutzutage sehr wichtig.", "Work-life balance is very important nowadays.", "C1", "Daily Life"),
             
             // C2 Level
-            GermanSentence(26, "Die Digitalisierung hat die Arbeitswelt grundlegend verändert.", "Digitalization has fundamentally changed the working world.", GermanLevel.C2, "Work"),
-            GermanSentence(27, "Der gesellschaftliche Wandel beeinflusst unseren Alltag erheblich.", "Social change significantly influences our daily lives.", GermanLevel.C2, "Daily Life"),
-            GermanSentence(28, "Lebenslanges Lernen ist in der heutigen Wissensgesellschaft unerlässlich.", "Lifelong learning is essential in today's knowledge society.", GermanLevel.C2, "Education"),
+            GermanSentence(26, "Die Digitalisierung hat die Arbeitswelt grundlegend verändert.", "Digitalization has fundamentally changed the working world.", "C2", "Work"),
+            GermanSentence(27, "Der gesellschaftliche Wandel beeinflusst unseren Alltag erheblich.", "Social change significantly influences our daily lives.", "C2", "Daily Life"),
+            GermanSentence(28, "Lebenslanges Lernen ist in der heutigen Wissensgesellschaft unerlässlich.", "Lifelong learning is essential in today's knowledge society.", "C2", "Education"),
             
             // Additional sentences for variety
-            GermanSentence(29, "Ich verstehe nicht.", "I don't understand.", GermanLevel.A1, "Language"),
-            GermanSentence(30, "Wo ist der Bahnhof?", "Where is the train station?", GermanLevel.A1, "Travel"),
-            GermanSentence(31, "Ich bin hungrig.", "I am hungry.", GermanLevel.A1, "Food"),
-            GermanSentence(32, "Mein Handy ist kaputt.", "My phone is broken.", GermanLevel.A1, "Technology"),
-            GermanSentence(33, "Ich sehe gern Filme.", "I like to watch movies.", GermanLevel.A1, "Entertainment"),
-            GermanSentence(34, "Ich spiele Fußball.", "I play football.", GermanLevel.A1, "Sports"),
-            GermanSentence(35, "Es regnet heute.", "It's raining today.", GermanLevel.A1, "Weather")
+            GermanSentence(29, "Ich verstehe nicht.", "I don't understand.", "A1", "Language"),
+            GermanSentence(30, "Wo ist der Bahnhof?", "Where is the train station?", "A1", "Travel"),
+            GermanSentence(31, "Ich bin hungrig.", "I am hungry.", "A1", "Food"),
+            GermanSentence(32, "Mein Handy ist kaputt.", "My phone is broken.", "A1", "Technology"),
+            GermanSentence(33, "Ich sehe gern Filme.", "I like to watch movies.", "A1", "Entertainment"),
+            GermanSentence(34, "Ich spiele Fußball.", "I play football.", "A1", "Sports"),
+            GermanSentence(35, "Es regnet heute.", "It's raining today.", "A1", "Weather")
         )
     }
     
@@ -286,12 +287,34 @@ class SentenceRepository private constructor(
      * Get a random sentence matching the specified criteria.
      * Enhanced with improved caching, validation, and performance optimizations.
      * 
-     * @param level Target German level
+     * @param level Target German level as String (e.g., "A1", "B2")
      * @param topics List of allowed topics
      * @return Random sentence or null if no matches found
      */
-    fun getRandomSentence(level: GermanLevel, topics: List<String>): GermanSentence? {
+    fun getRandomSentence(level: String, topics: List<String>): GermanSentence? {
+        return getRandomSentenceFromLevels(setOf(level), topics)
+    }
+    
+    /**
+     * Get a random sentence from multiple German levels with weighted selection.
+     * Enhanced with level weighting and smart distribution.
+     * 
+     * @param levels Set of target German levels (e.g., setOf("A1", "B1"))
+     * @param topics List of allowed topics
+     * @param levelWeights Optional weights for each level (default: equal weights)
+     * @return Random sentence or null if no matches found
+     */
+    fun getRandomSentenceFromLevels(
+        levels: Set<String>, 
+        topics: List<String>,
+        levelWeights: Map<String, Float> = emptyMap()
+    ): GermanSentence? {
         // Input validation with early returns
+        if (levels.isEmpty()) {
+            Log.w(TAG, "No levels provided for sentence retrieval")
+            return null
+        }
+        
         if (topics.isEmpty()) {
             Log.w(TAG, "No topics provided for sentence retrieval")
             return null
@@ -300,40 +323,194 @@ class SentenceRepository private constructor(
         // Convert to set for O(1) lookups - use existing set if already a set  
         @Suppress("UNCHECKED_CAST")
         val topicsSet = if (topics is Set<*>) topics as Set<String> else topics.toSet()
-        val cacheKey = buildCacheKey(level, topicsSet)
+        val cacheKey = buildMultiLevelCacheKey(levels, topicsSet, levelWeights)
         
         // Try cache first with null safety
         sentenceCache[cacheKey]?.let { cachedSentences ->
             if (cachedSentences.isNotEmpty()) {
-                return cachedSentences.random()
+                return selectWeightedRandomSentence(cachedSentences, levelWeights)
             }
         }
         
-        // Filter sentences using optimized instance method
+        // Filter sentences using optimized instance method for multiple levels
         val filteredSentences = SAMPLE_SENTENCES.filter { sentence ->
-            sentence.matchesCriteria(level, topicsSet)
+            levels.any { level -> sentence.matchesCriteria(level, topicsSet) }
         }
         
         if (filteredSentences.isEmpty()) {
-            Log.w(TAG, "No sentences found for level $level and topics $topicsSet")
+            Log.w(TAG, "No sentences found for levels $levels and topics $topicsSet")
             return null
         }
         
-        // Cache results and return random sentence
+        // Cache results and return weighted random sentence
         sentenceCache[cacheKey] = filteredSentences
-        Log.d(TAG, "Cached ${filteredSentences.size} sentences for key: $cacheKey")
-        return filteredSentences.random()
+        Log.d(TAG, "Cached ${filteredSentences.size} sentences for multi-level key: $cacheKey")
+        return selectWeightedRandomSentence(filteredSentences, levelWeights)
+    }
+    
+    /**
+     * Get a random sentence using UserPreferences (supports both single and multi-level).
+     * This is the recommended method for getting sentences based on user settings.
+     * 
+     * @param userPreferences User's learning preferences
+     * @return Random sentence or null if no matches found
+     */
+    fun getRandomSentenceForUser(userPreferences: com.germanleraningwidget.data.model.UserPreferences): GermanSentence? {
+        return if (userPreferences.hasMultipleLevels) {
+            // Use multi-level selection with user's level weights
+            getRandomSentenceFromLevels(
+                levels = userPreferences.selectedGermanLevels,
+                topics = userPreferences.selectedTopics.toList(),
+                levelWeights = userPreferences.getLevelWeights()
+            )
+        } else {
+            // Get sentence using multi-level approach with fallback
+            val sentence = getRandomSentenceFromLevels(
+                levels = userPreferences.selectedGermanLevels,
+                topics = userPreferences.selectedTopics.toList()
+            )
+            
+            if (sentence != null) {
+                Log.d(TAG, "Found sentence for multi-level delivery: ${sentence.germanText}")
+                return sentence
+            }
+            
+            // Fallback to primary level only if multi-level fails
+            val fallbackSentence = getRandomSentence(
+                level = userPreferences.primaryGermanLevel,
+                topics = userPreferences.selectedTopics.toList()
+            )
+            
+            if (fallbackSentence != null) {
+                Log.d(TAG, "Found sentence for primary level delivery: ${fallbackSentence.germanText}")
+                return fallbackSentence
+            }
+            
+            null
+        }
+    }
+    
+    /**
+     * Select a weighted random sentence from filtered results.
+     * Gives preference to sentences from levels with higher weights.
+     */
+    private fun selectWeightedRandomSentence(
+        sentences: List<GermanSentence>,
+        levelWeights: Map<String, Float>
+    ): GermanSentence? {
+        if (sentences.isEmpty()) return null
+        if (levelWeights.isEmpty()) return sentences.random()
+        
+        // Create weighted list based on sentence levels
+        val weightedSentences = sentences.flatMap { sentence ->
+            val weight = levelWeights[sentence.level] ?: 1.0f
+            val count = (weight * 10).toInt().coerceAtLeast(1) // Convert weight to count
+            List(count) { sentence }
+        }
+        
+        return weightedSentences.randomOrNull() ?: sentences.random()
+    }
+    
+    /**
+     * Build cache key for multi-level sentence filtering with optimized string building.
+     */
+    private fun buildMultiLevelCacheKey(
+        levels: Set<String>, 
+        topics: Set<String>,
+        levelWeights: Map<String, Float>
+    ): String {
+        return buildString {
+            append("multi_")
+            levels.sorted().joinTo(this, ",")
+            append('_')
+            topics.sorted().joinTo(this, ",")
+            
+            // Include weights in cache key if they're not default
+            if (levelWeights.isNotEmpty()) {
+                append("_weights_")
+                levelWeights.toSortedMap().entries.joinTo(this, ",") { "${it.key}:${it.value}" }
+            }
+        }
     }
     
     /**
      * Build cache key for sentence filtering with optimized string building.
+     * LEGACY METHOD - kept for backward compatibility
      */
-    private fun buildCacheKey(level: GermanLevel, topics: Set<String>): String {
+    private fun buildCacheKey(level: String, topics: Set<String>): String {
         return buildString {
-            append(level.name)
+            append(level)
             append('_')
             topics.sorted().joinTo(this, "_")
         }
+    }
+    
+    /**
+     * Get sentences distributed across multiple levels based on user preferences.
+     * Returns a map of level -> list of sentences for that level.
+     * 
+     * @param userPreferences User's learning preferences
+     * @param count Total number of sentences to retrieve
+     * @return Map of level to sentences for that level
+     */
+    fun getDistributedSentences(
+        userPreferences: com.germanleraningwidget.data.model.UserPreferences,
+        count: Int = userPreferences.recommendedDailySentences
+    ): Map<String, List<GermanSentence>> {
+        val distribution = userPreferences.getSentenceDistribution(count)
+        val topicsSet = userPreferences.selectedTopics
+        
+        return distribution.mapValues { (level, targetCount) ->
+            val filteredSentences = SAMPLE_SENTENCES.filter { sentence ->
+                sentence.matchesCriteria(level, topicsSet)
+            }
+            
+            if (filteredSentences.isEmpty()) {
+                emptyList()
+            } else {
+                // Get random sentences up to target count, allowing duplicates if needed
+                (1..targetCount).map { filteredSentences.random() }
+            }
+        }
+    }
+    
+    /**
+     * Get learning statistics for user's selected levels.
+     * Provides insights into available content across levels.
+     * 
+     * @param userPreferences User's learning preferences
+     * @return Statistics about available sentences per level
+     */
+    fun getLearningStatistics(
+        userPreferences: com.germanleraningwidget.data.model.UserPreferences
+    ): LearningStatistics {
+        val topicsSet = userPreferences.selectedTopics
+        
+        val levelStats = userPreferences.selectedGermanLevels.associateWith { level ->
+            val availableSentences = SAMPLE_SENTENCES.count { sentence ->
+                sentence.matchesCriteria(level, topicsSet)
+            }
+            
+            val topicBreakdown = topicsSet.associateWith { topic ->
+                SAMPLE_SENTENCES.count { sentence ->
+                    sentence.level == level && sentence.topic in topicsSet
+                }
+            }
+            
+            LevelStatistics(
+                level = level,
+                availableSentences = availableSentences,
+                topicBreakdown = topicBreakdown
+            )
+        }
+        
+        return LearningStatistics(
+            totalSentences = SAMPLE_SENTENCES.size,
+            selectedLevels = userPreferences.selectedGermanLevels,
+            selectedTopics = userPreferences.selectedTopics,
+            levelStatistics = levelStats,
+            recommendedDaily = userPreferences.recommendedDailySentences
+        )
     }
     
     /**
@@ -476,4 +653,26 @@ class SentenceRepository private constructor(
      * Custom exception for repository operations
      */
     class RepositoryException(message: String, cause: Throwable? = null) : Exception(message, cause)
+    
+    /**
+     * Data classes for learning statistics and insights
+     */
+    data class LevelStatistics(
+        val level: String,
+        val availableSentences: Int,
+        val topicBreakdown: Map<String, Int>
+    )
+    
+    data class LearningStatistics(
+        val totalSentences: Int,
+        val selectedLevels: Set<String>,
+        val selectedTopics: Set<String>,
+        val levelStatistics: Map<String, LevelStatistics>,
+        val recommendedDaily: Int
+    ) {
+        val totalAvailableForUser: Int = levelStatistics.values.sumOf { it.availableSentences }
+        val coveragePercentage: Float = if (totalSentences > 0) {
+            (totalAvailableForUser.toFloat() / totalSentences) * 100f
+        } else 0f
+    }
 } 

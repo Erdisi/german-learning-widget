@@ -72,9 +72,9 @@ class OnboardingViewModel(
             try {
                 preferencesRepository.userPreferences
                     .distinctUntilChanged { old, new ->
-                        // Custom equality check to avoid unnecessary updates
-                        old.germanLevel == new.germanLevel &&
-                        old.nativeLanguage == new.nativeLanguage &&
+                        // Custom equality check to avoid unnecessary updates - Optimized: More efficient comparison
+                        old.selectedGermanLevels == new.selectedGermanLevels &&
+                        old.primaryGermanLevel == new.primaryGermanLevel &&
                         old.selectedTopics == new.selectedTopics &&
                         old.deliveryFrequency == new.deliveryFrequency &&
                         old.isOnboardingCompleted == new.isOnboardingCompleted
@@ -85,123 +85,205 @@ class OnboardingViewModel(
                     }
                     .collect { preferences ->
                         stateMutex.withLock {
-                            // Only update if the UI state actually changed to avoid unnecessary recompositions
+                            // Only update if the UI state actually changed to avoid unnecessary recompositions - Fixed: Better error handling
                             val currentState = _uiState.value
-                            val needsUpdate = currentState.selectedLevel != preferences.germanLevel ||
-                                    currentState.selectedLanguage != preferences.nativeLanguage ||
-                                    currentState.selectedTopics != preferences.selectedTopics ||
-                                    currentState.selectedFrequency != preferences.deliveryFrequency ||
-                                    currentState.isOnboardingCompleted != preferences.isOnboardingCompleted ||
-                                    currentState.isLoading
-                            
-                            if (needsUpdate) {
-                                _uiState.value = currentState.copy(
-                                    selectedLevel = preferences.germanLevel,
-                                    selectedLanguage = preferences.nativeLanguage,
-                                    selectedTopics = preferences.selectedTopics.toMutableSet(),
-                                    selectedFrequency = preferences.deliveryFrequency,
-                                    isOnboardingCompleted = preferences.isOnboardingCompleted,
-                                    isLoading = false,
-                                    error = null
-                                )
-                                Log.d(TAG, "Preferences loaded and UI state updated")
-                            } else {
-                                // Just clear loading state
-                                _uiState.value = currentState.copy(isLoading = false, error = null)
-                                Log.d(TAG, "Preferences loaded, no UI state change needed")
+                            try {
+                                val needsUpdate = currentState.selectedGermanLevels != preferences.selectedGermanLevels ||
+                                        currentState.primaryGermanLevel != preferences.primaryGermanLevel ||
+                                        currentState.selectedTopics != preferences.selectedTopics ||
+                                        currentState.selectedFrequency != preferences.deliveryFrequency ||
+                                        currentState.isOnboardingCompleted != preferences.isOnboardingCompleted ||
+                                        currentState.isLoading
+                                
+                                if (needsUpdate) {
+                                    _uiState.value = currentState.copy(
+                                        selectedGermanLevels = preferences.selectedGermanLevels.toSet(), // Fixed: Ensure immutability
+                                        primaryGermanLevel = preferences.primaryGermanLevel,
+                                        selectedTopics = preferences.selectedTopics.toMutableSet(),
+                                        selectedFrequency = preferences.deliveryFrequency,
+                                        isOnboardingCompleted = preferences.isOnboardingCompleted,
+                                        isLoading = false,
+                                        error = null
+                                    )
+                                    Log.d(TAG, "Preferences loaded and UI state updated")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error updating UI state", e)
+                                updateStateWithError("Failed to update preferences display")
                             }
                         }
                     }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load preferences", e)
-                updateStateWithError("Failed to load preferences: ${e.message}")
+                Log.e(TAG, "Error in loadCurrentPreferences", e)
+                updateStateWithError("Failed to initialize preferences: ${e.message}")
             }
         }
     }
     
     /**
-     * Update German proficiency level.
+     * Update selected German level - LEGACY METHOD for backward compatibility
+     * @deprecated Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead
      */
-    fun updateGermanLevel(level: GermanLevel) {
-        viewModelScope.launch {
-            stateMutex.withLock {
-                _uiState.value = _uiState.value.copy(selectedLevel = level)
-                Log.d(TAG, "German level updated to: $level")
-            }
-        }
+    @Deprecated("Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead")
+    fun updateGermanLevel(level: String) {
+        _uiState.value = _uiState.value.copy(
+            selectedGermanLevels = setOf(level),
+            primaryGermanLevel = level
+        )
     }
     
     /**
-     * Update native language with validation.
+     * Update selected German levels (multi-level support)
      */
-    fun updateNativeLanguage(language: String) {
-        viewModelScope.launch {
-            val trimmedLanguage = language.trim()
-            if (trimmedLanguage.isBlank()) {
-                updateStateWithError("Language cannot be empty")
-                return@launch
-            }
-            
-            if (!AvailableLanguages.languages.contains(trimmedLanguage)) {
-                updateStateWithError("Please select a valid language")
-                return@launch
-            }
-            
-            stateMutex.withLock {
-                _uiState.value = _uiState.value.copy(
-                    selectedLanguage = trimmedLanguage,
-                    error = null
-                )
-                Log.d(TAG, "Native language updated to: $trimmedLanguage")
-            }
+    fun updateSelectedGermanLevels(levels: Set<String>) {
+        val currentState = _uiState.value
+        val validLevels = levels.filter { it.isNotBlank() }.toSet()
+        
+        if (validLevels.isEmpty()) {
+            Log.w(TAG, "Cannot set empty German levels")
+            return
         }
-    }
-    
-    /**
-     * Toggle topic selection with validation.
-     */
-    fun toggleTopic(topic: String) {
-        viewModelScope.launch {
-            val trimmedTopic = topic.trim()
-            if (trimmedTopic.isBlank()) {
-                updateStateWithError("Invalid topic")
-                return@launch
-            }
-            
-            if (!AvailableTopics.topics.contains(trimmedTopic)) {
-                updateStateWithError("Please select a valid topic")
-                return@launch
-            }
-            
-            stateMutex.withLock {
-                val currentTopics = _uiState.value.selectedTopics.toMutableSet()
-                val wasRemoved = if (currentTopics.contains(trimmedTopic)) {
-                    currentTopics.remove(trimmedTopic)
-                    true
-                } else {
-                    currentTopics.add(trimmedTopic)
-                    false
+        
+        // Ensure primary level is still valid
+        val newPrimaryLevel = if (currentState.primaryGermanLevel in validLevels) {
+            currentState.primaryGermanLevel
+        } else {
+            // Set primary to the lowest selected level
+            validLevels.minByOrNull { level ->
+                when (level) {
+                    "A1" -> 1; "A2" -> 2; "B1" -> 3; "B2" -> 4; "C1" -> 5; "C2" -> 6
+                    else -> 1
                 }
-                
-                _uiState.value = _uiState.value.copy(
-                    selectedTopics = currentTopics,
-                    error = null
-                )
-                
-                val action = if (wasRemoved) "removed from" else "added to"
-                Log.d(TAG, "Topic '$trimmedTopic' $action selection")
-            }
+            } ?: validLevels.first()
         }
+        
+        _uiState.value = currentState.copy(
+            selectedGermanLevels = validLevels,
+            primaryGermanLevel = newPrimaryLevel
+        )
     }
     
     /**
-     * Update delivery frequency.
+     * Toggle a German level (add if not present, remove if present)
+     */
+    fun toggleGermanLevel(level: String) {
+        val currentState = _uiState.value
+        val currentLevels = currentState.selectedGermanLevels
+        
+        if (level.isBlank()) {
+            Log.w(TAG, "Cannot toggle blank German level")
+            return
+        }
+        
+        val newLevels = if (currentLevels.contains(level)) {
+            // Removing level - ensure at least one remains
+            if (currentLevels.size <= 1) {
+                Log.w(TAG, "Cannot remove the last German level")
+                return
+            }
+            
+            // Don't allow removing primary level
+            if (level == currentState.primaryGermanLevel) {
+                Log.w(TAG, "Cannot remove primary German level. Change primary first.")
+                return
+            }
+            
+            currentLevels - level
+        } else {
+            // Adding level
+            currentLevels + level
+        }
+        
+        updateSelectedGermanLevels(newLevels)
+    }
+    
+    /**
+     * Update primary German level
+     */
+    fun updatePrimaryGermanLevel(level: String) {
+        val currentState = _uiState.value
+        
+        if (level.isBlank()) {
+            Log.w(TAG, "Cannot set blank primary German level")
+            return
+        }
+        
+        // Ensure the level is in selected levels
+        val newLevels = if (level in currentState.selectedGermanLevels) {
+            currentState.selectedGermanLevels
+        } else {
+            currentState.selectedGermanLevels + level
+        }
+        
+        _uiState.value = currentState.copy(
+            selectedGermanLevels = newLevels,
+            primaryGermanLevel = level
+        )
+    }
+    
+    /**
+     * Update selected topics
+     */
+    fun updateSelectedTopics(topics: Set<String>) {
+        _uiState.value = _uiState.value.copy(selectedTopics = topics.toMutableSet())
+    }
+    
+    /**
+     * Update delivery frequency
      */
     fun updateDeliveryFrequency(frequency: DeliveryFrequency) {
-        viewModelScope.launch {
-            stateMutex.withLock {
-                _uiState.value = _uiState.value.copy(selectedFrequency = frequency)
-                Log.d(TAG, "Delivery frequency updated to: ${frequency.displayName}")
+        _uiState.value = _uiState.value.copy(selectedFrequency = frequency)
+    }
+    
+    /**
+     * Complete onboarding and save preferences
+     */
+    fun completeOnboarding() {
+        viewModelScope.launch(exceptionHandler) {
+            try {
+                stateMutex.withLock {
+                    _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                }
+                
+                val currentState = _uiState.value
+                
+                // Validate form before saving
+                val validationResult = validateForm(currentState)
+                if (!validationResult.isSuccess) {
+                    updateStateWithError(validationResult.errorMessage ?: "Form validation failed")
+                    return@launch
+                }
+                
+                val preferences = UserPreferences(
+                    selectedGermanLevels = currentState.selectedGermanLevels,
+                    primaryGermanLevel = currentState.primaryGermanLevel,
+                    selectedTopics = currentState.selectedTopics.toSet(),
+                    deliveryFrequency = currentState.selectedFrequency,
+                    isOnboardingCompleted = true
+                )
+                
+                // Save preferences
+                val saveResult = preferencesRepository.updateUserPreferences(preferences)
+                saveResult.getOrThrow()
+                
+                // Update UI state
+                stateMutex.withLock {
+                    _uiState.value = currentState.copy(
+                        isOnboardingCompleted = true,
+                        isLoading = false,
+                        error = null
+                    )
+                }
+                
+                Log.i(TAG, "Onboarding completed successfully")
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to complete onboarding", e)
+                val errorMessage = when (e) {
+                    is ValidationException -> e.message ?: "Validation error"
+                    else -> "An unexpected error occurred"
+                }
+                updateStateWithError(errorMessage)
             }
         }
     }
@@ -225,8 +307,8 @@ class OnboardingViewModel(
             }
             
             val preferences = UserPreferences(
-                germanLevel = currentState.selectedLevel,
-                nativeLanguage = currentState.selectedLanguage,
+                selectedGermanLevels = currentState.selectedGermanLevels,
+                primaryGermanLevel = currentState.primaryGermanLevel,
                 selectedTopics = currentState.selectedTopics.toSet(),
                 deliveryFrequency = currentState.selectedFrequency,
                 isOnboardingCompleted = true
@@ -264,12 +346,12 @@ class OnboardingViewModel(
      * Validate the current form state.
      */
     private fun validateForm(state: OnboardingUiState): UserPreferences.ValidationResult {
-        if (state.selectedLanguage.isBlank()) {
-            return UserPreferences.ValidationResult.Error("Please select a native language")
+        if (state.selectedGermanLevels.isEmpty()) {
+            return UserPreferences.ValidationResult.Error("Please select at least one German level")
         }
         
-        if (!AvailableLanguages.languages.contains(state.selectedLanguage)) {
-            return UserPreferences.ValidationResult.Error("Please select a valid language")
+        if (state.primaryGermanLevel !in state.selectedGermanLevels) {
+            return UserPreferences.ValidationResult.Error("Primary level must be one of the selected levels")
         }
         
         if (state.selectedTopics.isEmpty()) {
@@ -290,8 +372,9 @@ class OnboardingViewModel(
     fun isFormValid(): Boolean {
         val state = _uiState.value
         return !state.isLoading && 
-               state.selectedLanguage.isNotBlank() && 
+               state.selectedGermanLevels.isNotEmpty() &&
                state.selectedTopics.isNotEmpty() &&
+               state.primaryGermanLevel in state.selectedGermanLevels &&
                validateForm(state).isSuccess
     }
     
@@ -355,33 +438,32 @@ class OnboardingViewModel(
 }
 
 /**
- * Immutable UI state for onboarding screen.
+ * UI State for onboarding flow - UPDATED FOR MULTI-LEVEL SUPPORT
  */
 data class OnboardingUiState(
-    val selectedLevel: GermanLevel = GermanLevel.A1,
-    val selectedLanguage: String = "English",
+    // Multi-level German selection
+    val selectedGermanLevels: Set<String> = setOf("A1"),
+    val primaryGermanLevel: String = "A1",
+    
+    // Other preferences
     val selectedTopics: MutableSet<String> = mutableSetOf(),
     val selectedFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
+    
+    // UI state
     val isLoading: Boolean = false,
     val error: String? = null,
     val isOnboardingCompleted: Boolean = false
 ) {
-    /**
-     * Get immutable copy of selected topics.
-     */
-    val selectedTopicsImmutable: Set<String> get() = selectedTopics.toSet()
+    // Backward compatibility property
+    @Deprecated("Use selectedGermanLevels and primaryGermanLevel instead")
+    val selectedLevel: String get() = primaryGermanLevel
     
     /**
-     * Check if any topics are selected.
+     * Check if the form is valid for completion
      */
-    val hasSelectedTopics: Boolean get() = selectedTopics.isNotEmpty()
-    
-    /**
-     * Get validation status.
-     */
-    val isValid: Boolean get() = selectedLanguage.isNotBlank() && 
-                                 selectedTopics.isNotEmpty() && 
-                                 !isLoading
+    val isFormValid: Boolean get() = selectedGermanLevels.isNotEmpty() && 
+                                    selectedTopics.isNotEmpty() &&
+                                    primaryGermanLevel in selectedGermanLevels
 }
 
 /**

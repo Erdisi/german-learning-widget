@@ -162,9 +162,6 @@ class GermanLearningApplication : Application(), Configuration.Provider {
             sentenceRepository.clearCache()
             
             if (aggressive) {
-                // Clear validation caches in data models
-                com.germanleraningwidget.data.model.UserPreferences.clearValidationCache()
-                
                 // Suggest garbage collection (though the system ultimately decides)
                 System.gc()
                 

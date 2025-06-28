@@ -61,8 +61,6 @@ class AppSettingsRepository(
     private object PreferencesKeys {
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val LEARNING_REMINDERS_ENABLED = booleanPreferencesKey("learning_reminders_enabled")
-        val HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
-        val TEXT_SIZE_SCALE = floatPreferencesKey("text_size_scale")
         val IS_DARK_MODE_ENABLED = booleanPreferencesKey("is_dark_mode_enabled")
         val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
         val LAST_VERSION_CODE = intPreferencesKey("last_version_code")
@@ -92,8 +90,6 @@ class AppSettingsRepository(
         return AppSettings(
             notificationsEnabled = preferences[PreferencesKeys.NOTIFICATIONS_ENABLED] ?: true,
             learningRemindersEnabled = preferences[PreferencesKeys.LEARNING_REMINDERS_ENABLED] ?: true,
-            hapticFeedbackEnabled = preferences[PreferencesKeys.HAPTIC_FEEDBACK_ENABLED] ?: true,
-            textSizeScale = preferences[PreferencesKeys.TEXT_SIZE_SCALE] ?: 1.0f,
             isDarkModeEnabled = preferences[PreferencesKeys.IS_DARK_MODE_ENABLED],
             isFirstLaunch = preferences[PreferencesKeys.IS_FIRST_LAUNCH] ?: true,
             lastVersionCode = preferences[PreferencesKeys.LAST_VERSION_CODE] ?: 0
@@ -116,25 +112,6 @@ class AppSettingsRepository(
     suspend fun updateLearningRemindersEnabled(enabled: Boolean): Result<Unit> {
         return safeWrite("update learning reminders") { preferences ->
             preferences[PreferencesKeys.LEARNING_REMINDERS_ENABLED] = enabled
-        }
-    }
-    
-    /**
-     * Update haptic feedback setting.
-     */
-    suspend fun updateHapticFeedbackEnabled(enabled: Boolean): Result<Unit> {
-        return safeWrite("update haptic feedback") { preferences ->
-            preferences[PreferencesKeys.HAPTIC_FEEDBACK_ENABLED] = enabled
-        }
-    }
-    
-    /**
-     * Update text size scale.
-     */
-    suspend fun updateTextSizeScale(scale: Float): Result<Unit> {
-        val safeScale = scale.coerceIn(0.5f, 2.0f)
-        return safeWrite("update text size scale") { preferences ->
-            preferences[PreferencesKeys.TEXT_SIZE_SCALE] = safeScale
         }
     }
     
@@ -187,8 +164,6 @@ class AppSettingsRepository(
                 context.appSettingsDataStore.edit { prefs ->
                     prefs[PreferencesKeys.NOTIFICATIONS_ENABLED] = safeSettings.notificationsEnabled
                     prefs[PreferencesKeys.LEARNING_REMINDERS_ENABLED] = safeSettings.learningRemindersEnabled
-                    prefs[PreferencesKeys.HAPTIC_FEEDBACK_ENABLED] = safeSettings.hapticFeedbackEnabled
-                    prefs[PreferencesKeys.TEXT_SIZE_SCALE] = safeSettings.textSizeScale
                     
                     if (safeSettings.isDarkModeEnabled != null) {
                         prefs[PreferencesKeys.IS_DARK_MODE_ENABLED] = safeSettings.isDarkModeEnabled

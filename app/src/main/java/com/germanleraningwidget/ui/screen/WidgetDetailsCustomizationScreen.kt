@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.germanleraningwidget.data.model.*
 import com.germanleraningwidget.data.repository.AppSettingsRepository
 import com.germanleraningwidget.data.repository.WidgetCustomizationRepository
+import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
 
 /**
@@ -109,9 +110,7 @@ fun WidgetDetailsCustomizationScreen(
             scope.launch {
                 isApplying = true
                 try {
-                    if (appSettings.hapticFeedbackEnabled) {
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     
                     val result = widgetCustomizationRepository.updateWidgetCustomization(customization)
                     if (result.isSuccess) {
@@ -141,9 +140,7 @@ fun WidgetDetailsCustomizationScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (appSettings.hapticFeedbackEnabled) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             onNavigateBack()
                         }
                     ) {
@@ -181,9 +178,7 @@ fun WidgetDetailsCustomizationScreen(
                     // Reset Button
                     IconButton(
                         onClick = {
-                            if (appSettings.hapticFeedbackEnabled) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             showResetDialog = true
                         }
                     ) {
@@ -200,8 +195,8 @@ fun WidgetDetailsCustomizationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(UnifiedDesign.ContentPadding),
+            verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap)
         ) {
             // Widget Preview Section
             item {
@@ -222,7 +217,7 @@ fun WidgetDetailsCustomizationScreen(
                     ) {
                         Text(
                             text = message,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -240,7 +235,7 @@ fun WidgetDetailsCustomizationScreen(
                     ) {
                         Text(
                             text = message,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -258,7 +253,7 @@ fun WidgetDetailsCustomizationScreen(
                         )
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -283,9 +278,7 @@ fun WidgetDetailsCustomizationScreen(
                 BackgroundColorSection(
                     currentColor = (pendingCustomization ?: currentCustomization).backgroundColor,
                     onColorSelected = { color ->
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         pendingCustomization = (pendingCustomization ?: currentCustomization).copy(backgroundColor = color)
                     }
                 )
@@ -298,9 +291,7 @@ fun WidgetDetailsCustomizationScreen(
                     description = "Adjust the size of German text in the widget",
                     currentSize = (pendingCustomization ?: currentCustomization).germanTextSize,
                     onSizeSelected = { size ->
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         pendingCustomization = (pendingCustomization ?: currentCustomization).copy(germanTextSize = size)
                     }
                 )
@@ -312,9 +303,7 @@ fun WidgetDetailsCustomizationScreen(
                     description = "Adjust the size of translated text in the widget",
                     currentSize = (pendingCustomization ?: currentCustomization).translatedTextSize,
                     onSizeSelected = { size ->
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         pendingCustomization = (pendingCustomization ?: currentCustomization).copy(translatedTextSize = size)
                     }
                 )
@@ -325,9 +314,7 @@ fun WidgetDetailsCustomizationScreen(
                 TextContrastSection(
                     currentContrast = (pendingCustomization ?: currentCustomization).textContrast,
                     onContrastSelected = { contrast ->
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         pendingCustomization = (pendingCustomization ?: currentCustomization).copy(textContrast = contrast)
                     }
                 )
@@ -349,9 +336,7 @@ fun WidgetDetailsCustomizationScreen(
                         showResetDialog = false
                         isResetting = true
                         
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         
                         scope.launch {
                             try {
@@ -403,7 +388,7 @@ private fun WidgetPreviewCard(
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(UnifiedDesign.ContentPadding)
         ) {
             Text(
                 text = "Live Preview",
@@ -427,7 +412,7 @@ private fun WidgetPreviewCard(
                         Color.White.copy(alpha = 0.2f),
                         RoundedCornerShape(if (widgetType == WidgetType.HERO) 20.dp else 16.dp)
                     )
-                    .padding(16.dp)
+                    .padding(UnifiedDesign.ContentPadding)
             ) {
                 when (widgetType) {
                     WidgetType.MAIN -> MainWidgetPreview(customization)

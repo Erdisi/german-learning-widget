@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.germanleraningwidget.data.model.*
 import com.germanleraningwidget.data.repository.AppSettingsRepository
 import com.germanleraningwidget.data.repository.WidgetCustomizationRepository
+import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
 
 /**
@@ -75,9 +76,7 @@ fun WidgetCustomizationScreen(
         scope.launch {
             isApplying = true
             try {
-                if (appSettings.hapticFeedbackEnabled) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                }
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 
                 val result = widgetCustomizationRepository.updateAllWidgetCustomizations(allCustomizations)
                 if (result.isSuccess) {
@@ -120,9 +119,7 @@ fun WidgetCustomizationScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (appSettings.hapticFeedbackEnabled) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             onNavigateBack()
                         }
                     ) {
@@ -160,9 +157,7 @@ fun WidgetCustomizationScreen(
                     // Reset All Button
                     IconButton(
                         onClick = {
-                            if (appSettings.hapticFeedbackEnabled) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                             showResetDialog = true
                         }
                     ) {
@@ -179,8 +174,8 @@ fun WidgetCustomizationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(UnifiedDesign.ContentPadding),
+            verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap)
         ) {
             // Header Section
             item {
@@ -191,7 +186,7 @@ fun WidgetCustomizationScreen(
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
@@ -208,7 +203,7 @@ fun WidgetCustomizationScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Personalize background colors, text sizes, and contrast for each widget type",
                             style = MaterialTheme.typography.bodyMedium,
@@ -230,7 +225,7 @@ fun WidgetCustomizationScreen(
                     ) {
                         Text(
                             text = message,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -248,7 +243,7 @@ fun WidgetCustomizationScreen(
                     ) {
                         Text(
                             text = message,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -270,11 +265,8 @@ fun WidgetCustomizationScreen(
                 WidgetCustomizationCard(
                     widgetType = widgetType,
                     customization = allCustomizations.getCustomization(widgetType),
-                    hapticEnabled = appSettings.hapticFeedbackEnabled,
                     onClick = {
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         onNavigateToWidgetDetails(widgetType)
                     }
                 )
@@ -290,7 +282,7 @@ fun WidgetCustomizationScreen(
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(UnifiedDesign.ContentPadding)
                     ) {
                         Text(
                             text = "Current Settings Summary",
@@ -323,9 +315,7 @@ fun WidgetCustomizationScreen(
                         showResetDialog = false
                         isResetting = true
                         
-                        if (appSettings.hapticFeedbackEnabled) {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         
                         // Reset all customizations
                         scope.launch {
@@ -368,7 +358,6 @@ fun WidgetCustomizationScreen(
 private fun WidgetCustomizationCard(
     widgetType: WidgetType,
     customization: WidgetCustomization,
-    hapticEnabled: Boolean,
     onClick: () -> Unit
 ) {
     val hapticFeedback = LocalHapticFeedback.current
@@ -384,9 +373,7 @@ private fun WidgetCustomizationCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                if (hapticEnabled) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                }
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 onClick()
             },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -395,7 +382,7 @@ private fun WidgetCustomizationCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(animatedBackgroundColor)
-                .padding(16.dp),
+                .padding(UnifiedDesign.ContentPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Widget Type Info
@@ -407,7 +394,7 @@ private fun WidgetCustomizationCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = widgetType.description,
                     style = MaterialTheme.typography.bodySmall,
@@ -426,7 +413,7 @@ private fun WidgetCustomizationCard(
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(
                                 // Use solid center color to match actual widget appearance
                                 customization.backgroundColor.centerColor
@@ -434,7 +421,7 @@ private fun WidgetCustomizationCard(
                             .border(
                                 1.dp,
                                 MaterialTheme.colorScheme.outline,
-                                RoundedCornerShape(6.dp)
+                                RoundedCornerShape(8.dp)
                             )
                     )
                     
@@ -453,7 +440,7 @@ private fun WidgetCustomizationCard(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Background: ${customization.backgroundColor.displayName} • Contrast: ${customization.textContrast.displayName}",
                     style = MaterialTheme.typography.labelSmall,

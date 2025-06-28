@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
  * @param id Unique identifier for the sentence (must be non-negative)
  * @param germanText The German text (trimmed, must not be blank)
  * @param translation English translation (trimmed, must not be blank)
- * @param level German proficiency level required
+ * @param level German proficiency level required (A1, A2, B1, B2, C1, C2)
  * @param topic Learning topic category (trimmed, must not be blank)
  * @param timestamp Creation timestamp in milliseconds
  * 
@@ -25,7 +25,7 @@ data class GermanSentence(
     val id: Long,
     val germanText: String,
     val translation: String,
-    val level: GermanLevel,
+    val level: String,
     val topic: String,
     val timestamp: Long = System.currentTimeMillis()
 ) {
@@ -34,6 +34,7 @@ data class GermanSentence(
         require(id >= 0) { "ID must be non-negative, got: $id" }
         require(germanText.isNotBlank()) { "German text cannot be blank" }
         require(translation.isNotBlank()) { "Translation cannot be blank" }
+        require(level.isNotBlank() && level in VALID_LEVELS) { "Level must be one of: ${VALID_LEVELS.joinToString()}, got: $level" }
         require(topic.isNotBlank()) { "Topic cannot be blank" }
         require(timestamp > 0) { "Timestamp must be positive, got: $timestamp" }
     }
@@ -54,16 +55,19 @@ data class GermanSentence(
     fun normalized(): GermanSentence {
         val normalizedGerman = germanText.trim().intern()
         val normalizedTranslation = translation.trim().intern()
+        val normalizedLevel = level.trim().uppercase()
         val normalizedTopic = topic.trim().intern()
         
         return if (normalizedGerman == germanText && 
                   normalizedTranslation == translation && 
+                  normalizedLevel == level &&
                   normalizedTopic == topic) {
             this // Return same instance if no changes needed
         } else {
             copy(
                 germanText = normalizedGerman,
                 translation = normalizedTranslation,
+                level = normalizedLevel,
                 topic = normalizedTopic
             )
         }
@@ -72,15 +76,22 @@ data class GermanSentence(
     /**
      * Memory-efficient string representation for debugging.
      */
-    override fun toString(): String = "GermanSentence(id=$id, level=${level.name}, topic='$topic')"
+    override fun toString(): String = "GermanSentence(id=$id, level='$level', topic='$topic')"
     
     /**
      * Checks if this sentence is suitable for the given criteria efficiently.
-     * Optimized version of the extension function for better performance.
+     * Optimized version that works with string level comparison.
      */
-    fun matchesCriteria(targetLevel: GermanLevel, allowedTopics: Set<String>): Boolean {
+    fun matchesCriteria(targetLevel: String, allowedTopics: Set<String>): Boolean {
         // Fast path: check level first (cheaper operation)
-        if (level.ordinal > targetLevel.ordinal) return false
+        // Compare level strings - sentences at or below target level are suitable
+        val levelOrder = mapOf(
+            "A1" to 1, "A2" to 2, "B1" to 3, "B2" to 4, "C1" to 5, "C2" to 6
+        )
+        val sentenceLevelOrder = levelOrder[level] ?: 1
+        val targetLevelOrder = levelOrder[targetLevel] ?: 1
+        
+        if (sentenceLevelOrder > targetLevelOrder) return false
         
         // Topic check with optimized set lookup
         return allowedTopics.contains(topic)
@@ -89,7 +100,7 @@ data class GermanSentence(
     /**
      * Get sentence difficulty score for adaptive learning.
      */
-    val difficultyScore: Int get() = level.order + germanText.split(' ').size
+    val difficultyScore: Int get() = level.length + germanText.split(' ').size
     
     /**
      * Check if sentence contains specific words (case-insensitive).
@@ -101,13 +112,18 @@ data class GermanSentence(
     
     companion object {
         /**
+         * Valid German proficiency levels
+         */
+        val VALID_LEVELS = setOf("A1", "A2", "B1", "B2", "C1", "C2")
+        
+        /**
          * Safe factory method with enhanced validation and error context.
          */
         fun createSafe(
             id: Long,
             germanText: String?,
             translation: String?,
-            level: GermanLevel,
+            level: String,
             topic: String?,
             timestamp: Long = System.currentTimeMillis()
         ): Result<GermanSentence> {
@@ -117,6 +133,7 @@ data class GermanSentence(
                     id < 0 -> Result.failure(IllegalArgumentException("ID must be non-negative: $id"))
                     germanText.isNullOrBlank() -> Result.failure(IllegalArgumentException("German text cannot be blank"))
                     translation.isNullOrBlank() -> Result.failure(IllegalArgumentException("Translation cannot be blank"))
+                    level.isBlank() || level !in VALID_LEVELS -> Result.failure(IllegalArgumentException("Level must be one of: ${VALID_LEVELS.joinToString()}, got: $level"))
                     topic.isNullOrBlank() -> Result.failure(IllegalArgumentException("Topic cannot be blank"))
                     timestamp <= 0 -> Result.failure(IllegalArgumentException("Timestamp must be positive: $timestamp"))
                     else -> {
@@ -124,7 +141,7 @@ data class GermanSentence(
                             id = id,
                             germanText = germanText.trim(),
                             translation = translation.trim(),
-                            level = level,
+                            level = level.trim().uppercase(),
                             topic = topic.trim(),
                             timestamp = timestamp
                         )
@@ -143,14 +160,14 @@ data class GermanSentence(
             id: Long = 1L,
             german: String = "Test Satz",
             english: String = "Test sentence",
-            level: GermanLevel = GermanLevel.A1,
+            level: String = "A1",
             topic: String = "Testing",
             timestamp: Long = System.currentTimeMillis(),
             validate: Boolean = true
         ): GermanSentence {
             return if (validate) {
                 createSafe(id, german, english, level, topic, timestamp)
-                    .getOrDefault(GermanSentence(1L, "Default Test", "Default Test", GermanLevel.A1, "Test"))
+                    .getOrDefault(GermanSentence(1L, "Default Test", "Default Test", "A1", "Test"))
             } else {
                 GermanSentence(id, german, english, level, topic, timestamp)
             }
@@ -182,7 +199,7 @@ data class GermanSentence(
         val id: Long,
         val germanText: String,
         val translation: String,
-        val level: GermanLevel,
+        val level: String,
         val topic: String
     )
     
@@ -212,7 +229,7 @@ data class SentenceHistory(
     val sentenceId: Long,
     val germanText: String,
     val translation: String,
-    val level: GermanLevel,
+    val level: String,
     val topic: String,
     val deliveredAt: Long = System.currentTimeMillis()
 ) {
@@ -258,7 +275,7 @@ data class SentenceHistory(
             sentenceId: Long,
             germanText: String,
             translation: String,
-            level: GermanLevel,
+            level: String,
             topic: String,
             deliveredAt: Long = System.currentTimeMillis()
         ): Result<SentenceHistory> {
@@ -276,6 +293,6 @@ data class SentenceHistory(
  * Optimized extension function with caching for better performance.
  * Use the instance method for better performance when possible.
  */
-fun GermanSentence.matchesCriteria(targetLevel: GermanLevel, allowedTopics: Set<String>): Boolean {
+fun GermanSentence.matchesCriteria(targetLevel: String, allowedTopics: Set<String>): Boolean {
     return this.matchesCriteria(targetLevel, allowedTopics)
 } 

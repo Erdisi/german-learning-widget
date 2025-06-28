@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -27,8 +28,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.germanleraningwidget.data.repository.AppSettingsRepository
 import com.germanleraningwidget.data.repository.SentenceRepository
 import com.germanleraningwidget.data.repository.UserPreferencesRepository
+import com.germanleraningwidget.di.AppModule
+import com.germanleraningwidget.di.rememberRepositoryContainer
 import com.germanleraningwidget.ui.screen.*
 import com.germanleraningwidget.ui.theme.GermanLearningWidgetTheme
 import com.germanleraningwidget.ui.viewmodel.OnboardingViewModel
@@ -59,6 +63,7 @@ object NavigationConfig {
     const val ROUTE_LEARNING_PREFERENCES = "learning_preferences"
     const val ROUTE_WIDGET_CUSTOMIZATION = "widget_customization"
     const val ROUTE_WIDGET_DETAILS = "widget_details"
+
     
     val bottomNavItems = listOf(
         BottomNavItem(
@@ -121,7 +126,18 @@ class MainActivity : ComponentActivity() {
             Log.d(TAG, "MainActivity onCreate")
             
             setContent {
-                GermanLearningWidgetTheme {
+                val appSettingsRepository = AppSettingsRepository(this@MainActivity)
+                val appSettings by appSettingsRepository.appSettings.collectAsStateWithLifecycle(
+                    initialValue = com.germanleraningwidget.data.model.AppSettings()
+                )
+                
+                val darkTheme = when (appSettings.isDarkModeEnabled) {
+                    true -> true
+                    false -> false
+                    null -> isSystemInDarkTheme() // Follow system setting if not explicitly set
+                }
+                
+                GermanLearningWidgetTheme(darkTheme = darkTheme) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -134,7 +150,18 @@ class MainActivity : ComponentActivity() {
             Log.e(TAG, "Failed to set content", e)
             // Fallback to basic UI
             setContent {
-                GermanLearningWidgetTheme {
+                val appSettingsRepository = AppSettingsRepository(this@MainActivity)
+                val appSettings by appSettingsRepository.appSettings.collectAsStateWithLifecycle(
+                    initialValue = com.germanleraningwidget.data.model.AppSettings()
+                )
+                
+                val darkTheme = when (appSettings.isDarkModeEnabled) {
+                    true -> true
+                    false -> false
+                    null -> isSystemInDarkTheme() // Follow system setting if not explicitly set
+                }
+                
+                GermanLearningWidgetTheme(darkTheme = darkTheme) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -201,13 +228,10 @@ fun GermanLearningApp() {
     val activity = context as? MainActivity
     val navigateTo = activity?.intent?.getStringExtra(MainActivity.EXTRA_NAVIGATE_TO)
     
-    // Initialize repositories with error handling
-    val repositoryState = remember {
+    // Initialize repositories with error handling using dependency injection
+    val repositoryContainer = remember {
         try {
-            RepositoryContainer(
-                sentenceRepository = SentenceRepository.getInstance(context),
-                preferencesRepository = UserPreferencesRepository(context)
-            )
+            AppModule.createRepositoryContainer(context)
         } catch (e: Exception) {
             Log.e("Repository", "Failed to initialize repositories", e)
             appError = "Failed to initialize app: ${e.message}"
@@ -216,7 +240,7 @@ fun GermanLearningApp() {
     }
     
     // Show error screen if initialization failed
-    if (appError != null || repositoryState == null) {
+    if (appError != null || repositoryContainer == null) {
         ErrorScreen(
             error = appError ?: "Failed to initialize app",
             onRetry = {
@@ -230,11 +254,11 @@ fun GermanLearningApp() {
     
     // ViewModel with error handling
     val onboardingViewModel: OnboardingViewModel = viewModel {
-        OnboardingViewModel(repositoryState.preferencesRepository)
+        OnboardingViewModel(repositoryContainer.userPreferencesRepository)
     }
     
     // User preferences with lifecycle-aware collection
-    val userPreferences by repositoryState.preferencesRepository.userPreferences
+    val userPreferences by repositoryContainer.userPreferencesRepository.userPreferences
         .collectAsStateWithLifecycle(
             initialValue = com.germanleraningwidget.data.model.UserPreferences()
         )
@@ -308,8 +332,10 @@ fun GermanLearningApp() {
             composable(NavigationConfig.ROUTE_ONBOARDING) {
                 OnboardingScreen(
                     viewModel = onboardingViewModel,
-                    onOnboardingComplete = { frequency ->
-                        handleOnboardingComplete(context, navController, frequency)
+                    onOnboardingComplete = {
+                        navController.navigate(NavigationConfig.ROUTE_HOME) {
+                            popUpTo(NavigationConfig.ROUTE_ONBOARDING) { inclusive = true }
+                        }
                     }
                 )
             }
@@ -322,12 +348,16 @@ fun GermanLearningApp() {
                     },
                     onNavigateToLearningSetup = { 
                         navController.navigate(NavigationConfig.ROUTE_SETTINGS)
+                    },
+                    onNavigateToWidgetCustomization = {
+                        navController.navigate(NavigationConfig.ROUTE_WIDGET_CUSTOMIZATION)
                     }
                 )
             }
             
             composable(NavigationConfig.ROUTE_BOOKMARKS) {
                 BookmarksScreen(
+                    userPreferences = userPreferences,
                     onNavigateBack = { 
                         navigateBackToHome(navController)
                     }
@@ -337,7 +367,7 @@ fun GermanLearningApp() {
             composable(NavigationConfig.ROUTE_SETTINGS) {
                 SettingsScreen(
                     userPreferences = userPreferences,
-                    preferencesRepository = repositoryState.preferencesRepository,
+                    preferencesRepository = repositoryContainer.userPreferencesRepository,
                     onNavigateBack = { 
                         navigateBackToHome(navController)
                     },
@@ -353,12 +383,14 @@ fun GermanLearningApp() {
             composable(NavigationConfig.ROUTE_LEARNING_PREFERENCES) {
                 LearningSetupScreen(
                     userPreferences = userPreferences,
-                    preferencesRepository = repositoryState.preferencesRepository,
+                    preferencesRepository = repositoryContainer.userPreferencesRepository,
                     onNavigateBack = { 
                         navController.popBackStack()
                     }
                 )
             }
+            
+
             
             composable(NavigationConfig.ROUTE_WIDGET_CUSTOMIZATION) {
                 WidgetCustomizationScreen(
@@ -543,10 +575,4 @@ private fun ErrorScreen(
     }
 }
 
-/**
- * Container for repositories to ensure proper initialization.
- */
-private data class RepositoryContainer(
-    val sentenceRepository: SentenceRepository,
-    val preferencesRepository: UserPreferencesRepository
-)
+// Repository container is now provided by AppModule dependency injection

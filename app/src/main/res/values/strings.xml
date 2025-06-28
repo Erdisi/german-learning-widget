@@ -3,4 +3,48 @@
     <string name="german_learning_widget_description">Learn German with daily sentences</string>
     <string name="bookmarks_widget_description">Review your saved German sentences</string>
     <string name="bookmarks_hero_widget_description">Hero-style carousel for your bookmarked German sentences</string>
+    
+    <!-- HomeScreen strings -->
+    <string name="welcome_greeting">Willkommen!</string>
+    <string name="ready_to_learn_today">Ready to learn German today?</string>
+    <string name="available_widgets">Available Widgets</string>
+    <string name="daily_sentences_description">Daily German sentences delivered to your home screen</string>
+    <string name="your_learning_profile">Your Learning Profile</string>
+    <string name="level_label">Level</string>
+    <string name="topics_label">Topics</string>
+    <string name="frequency_label">Frequency</string>
+    <string name="topics_selected">%d selected</string>
+    <string name="edit_preferences">Edit Preferences</string>
+    <string name="add_your_widget">Add Your Widget</string>
+    <string name="setup_button">Setup</string>
+    <string name="quick_setup_instructions">Quick Setup Instructions:</string>
+    <string name="setup_instructions">1. Long-press your home screen\n2. Select \'Widgets\'\n3. Find \'German Learning Widget\'\n4. Start learning with daily sentences!</string>
+    
+    <!-- Widget preview strings -->
+    <string name="main_learning_widget">Main Learning Widget</string>
+    <string name="bookmarks_widget">Bookmarks</string>
+    <string name="hero_bookmarks_widget">Hero Bookmarks</string>
+    <string name="demo_german_greeting">Guten Morgen!</string>
+    <string name="demo_english_greeting">Good morning!</string>
+    <string name="demo_german_question">Wie geht es dir?</string>
+    <string name="demo_english_question">How are you?</string>
+    <string name="demo_german_weather">Es ist kalt heute.</string>
+    <string name="demo_english_weather">It\'s cold today.</string>
+    <string name="demo_topic_greetings">Greetings</string>
+    <string name="demo_topic_daily_life">Daily Life</string>
+    <string name="demo_topic_weather">Weather</string>
+    <string name="bookmarks_count">%d saved</string>
+    
+    <!-- Content descriptions for accessibility -->
+    <string name="welcome_icon_description">Welcome icon</string>
+    <string name="widgets_icon_description">Widgets icon</string>
+    <string name="profile_icon_description">User profile icon</string>
+    <string name="add_widget_icon_description">Add widget icon</string>
+    <string name="setup_arrow_description">Setup arrow</string>
+    <string name="main_widget_icon_description">Main widget icon</string>
+    <string name="bookmarks_icon_description">Bookmarks icon</string>
+    <string name="hero_widget_icon_description">Hero widget carousel icon</string>
+    <string name="bookmark_button_description">Bookmark sentence</string>
+    <string name="navigation_arrow_description">Navigation arrow</string>
+    <string name="preview_dots_description">Preview indicator dots</string>
 </resources>

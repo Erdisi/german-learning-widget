@@ -54,11 +54,17 @@ class UserPreferencesRepository(
     private val writeMutex = Mutex()
     
     /**
-     * Preference keys with type safety
+     * Preference keys with type safety - UPDATED FOR MULTI-LEVEL SUPPORT
      */
     private object PreferencesKeys {
-        val GERMAN_LEVEL = stringPreferencesKey("german_level")
-        val NATIVE_LANGUAGE = stringPreferencesKey("native_language")
+        // New multi-level keys
+        val SELECTED_GERMAN_LEVELS = stringSetPreferencesKey("selected_german_levels")
+        val PRIMARY_GERMAN_LEVEL = stringPreferencesKey("primary_german_level")
+        
+        // Legacy keys for migration
+        val GERMAN_LEVEL = stringPreferencesKey("german_level") // Legacy single level
+        
+        // Other existing keys
         val SELECTED_TOPICS = stringSetPreferencesKey("selected_topics")
         val DELIVERY_FREQUENCY = stringPreferencesKey("delivery_frequency")
         val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
@@ -66,6 +72,7 @@ class UserPreferencesRepository(
     
     /**
      * Reactive flow of user preferences with error handling and safe defaults.
+     * Now includes migration from single-level to multi-level format.
      */
     val userPreferences: Flow<UserPreferences> = context.dataStore.data
         .catch { exception ->
@@ -77,44 +84,161 @@ class UserPreferencesRepository(
             try {
                 mapPreferencesToUserPreferences(preferences)
             } catch (e: Exception) {
-                Log.e(TAG, "Error mapping preferences", e)
-                UserPreferences().withSafeDefaults()
+                try {
+                    Log.e(TAG, "Error mapping preferences", e)
+                    UserPreferences()
+                } catch (fallbackError: Exception) {
+                    Log.e(TAG, "Error creating fallback preferences", fallbackError)
+                    UserPreferences()
+                }
             }
         }
     
     /**
-     * Map DataStore preferences to UserPreferences with validation.
+     * Map DataStore preferences to UserPreferences with validation and migration support.
      */
     private fun mapPreferencesToUserPreferences(preferences: Preferences): UserPreferences {
-        return UserPreferences(
-            germanLevel = GermanLevel.fromString(preferences[PreferencesKeys.GERMAN_LEVEL]),
-            nativeLanguage = preferences[PreferencesKeys.NATIVE_LANGUAGE]?.takeIf { it.isNotBlank() } ?: "English",
-            selectedTopics = preferences[PreferencesKeys.SELECTED_TOPICS]?.filter { it.isNotBlank() }?.toSet() ?: emptySet(),
-            deliveryFrequency = DeliveryFrequency.fromString(preferences[PreferencesKeys.DELIVERY_FREQUENCY]),
-            isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
-        ).withSafeDefaults()
-    }
-    
-    /**
-     * Update German level with validation.
-     */
-    suspend fun updateGermanLevel(level: GermanLevel): Result<Unit> {
-        return safeWrite("update German level") { preferences ->
-            preferences[PreferencesKeys.GERMAN_LEVEL] = level.name
-        }
-    }
-    
-    /**
-     * Update native language with validation.
-     */
-    suspend fun updateNativeLanguage(language: String): Result<Unit> {
-        val trimmedLanguage = language.trim()
-        if (trimmedLanguage.isBlank()) {
-            return Result.failure(IllegalArgumentException("Native language cannot be blank"))
+        // Check if we need to migrate from single-level to multi-level
+        val legacyGermanLevel = preferences[PreferencesKeys.GERMAN_LEVEL]
+        val selectedLevels = preferences[PreferencesKeys.SELECTED_GERMAN_LEVELS]
+        val primaryLevel = preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL]
+        
+        // Migration logic: if we have legacy data but no new data, migrate
+        val (finalSelectedLevels, finalPrimaryLevel) = when {
+            // New format exists - use it
+            !selectedLevels.isNullOrEmpty() && !primaryLevel.isNullOrBlank() -> {
+                Pair(selectedLevels.filter { it.isNotBlank() }.toSet(), primaryLevel)
+            }
+            
+            // Legacy format exists - migrate it
+            !legacyGermanLevel.isNullOrBlank() -> {
+                Log.i(TAG, "Migrating from single-level ($legacyGermanLevel) to multi-level format")
+                Pair(setOf(legacyGermanLevel), legacyGermanLevel)
+            }
+            
+            // No data - use defaults
+            else -> {
+                Pair(setOf("A1"), "A1")
+            }
         }
         
-        return safeWrite("update native language") { preferences ->
-            preferences[PreferencesKeys.NATIVE_LANGUAGE] = trimmedLanguage
+        return UserPreferences(
+            selectedGermanLevels = finalSelectedLevels.ifEmpty { setOf("A1") },
+            primaryGermanLevel = finalPrimaryLevel.takeIf { it.isNotBlank() && it in finalSelectedLevels } ?: "A1",
+            selectedTopics = preferences[PreferencesKeys.SELECTED_TOPICS]?.filter { it.isNotBlank() }?.toSet() ?: setOf("Daily Life"),
+            deliveryFrequency = DeliveryFrequency.fromDisplayName(preferences[PreferencesKeys.DELIVERY_FREQUENCY]),
+            isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
+        )
+    }
+    
+    /**
+     * Update selected German levels with validation.
+     */
+    suspend fun updateSelectedGermanLevels(levels: Set<String>): Result<Unit> {
+        val validLevels = levels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        if (validLevels.isEmpty()) {
+            return Result.failure(IllegalArgumentException("At least one German level must be selected"))
+        }
+        
+        return safeWrite("update selected German levels") { preferences ->
+            preferences[PreferencesKeys.SELECTED_GERMAN_LEVELS] = validLevels
+            
+            // Ensure primary level is still valid
+            val currentPrimary = preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL]
+            if (currentPrimary.isNullOrBlank() || currentPrimary !in validLevels) {
+                // Set primary to the lowest selected level
+                val newPrimary = validLevels.minByOrNull { level ->
+                    when (level) {
+                        "A1" -> 1; "A2" -> 2; "B1" -> 3; "B2" -> 4; "C1" -> 5; "C2" -> 6
+                        else -> 1
+                    }
+                } ?: "A1"
+                preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL] = newPrimary
+                Log.i(TAG, "Updated primary level to $newPrimary")
+            }
+        }
+    }
+    
+    /**
+     * Update primary German level with validation.
+     */
+    suspend fun updatePrimaryGermanLevel(level: String): Result<Unit> {
+        val trimmedLevel = level.trim()
+        if (trimmedLevel.isBlank()) {
+            return Result.failure(IllegalArgumentException("Primary German level cannot be blank"))
+        }
+        
+        return safeWrite("update primary German level") { preferences ->
+            // Ensure the level is in selected levels
+            val selectedLevels = preferences[PreferencesKeys.SELECTED_GERMAN_LEVELS] ?: setOf("A1")
+            if (trimmedLevel !in selectedLevels) {
+                // Add the level to selected levels
+                preferences[PreferencesKeys.SELECTED_GERMAN_LEVELS] = selectedLevels + trimmedLevel
+                Log.i(TAG, "Added $trimmedLevel to selected levels when setting as primary")
+            }
+            preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL] = trimmedLevel
+        }
+    }
+    
+    /**
+     * Toggle a German level (add if not present, remove if present)
+     * Ensures at least one level remains selected and primary level is valid.
+     */
+    suspend fun toggleGermanLevel(level: String): Result<Boolean> {
+        val trimmedLevel = level.trim()
+        if (trimmedLevel.isBlank()) {
+            return Result.failure(IllegalArgumentException("German level cannot be blank"))
+        }
+        
+        return writeMutex.withLock {
+            try {
+                val currentPrefs = getCurrentPreferences().getOrThrow()
+                val currentLevels = currentPrefs.selectedGermanLevels
+                val isCurrentlySelected = trimmedLevel in currentLevels
+                
+                if (isCurrentlySelected) {
+                    // Removing level
+                    if (currentLevels.size <= 1) {
+                        return@withLock Result.failure(
+                            IllegalArgumentException("Cannot remove the last German level. At least one must be selected.")
+                        )
+                    }
+                    
+                    if (trimmedLevel == currentPrefs.primaryGermanLevel) {
+                        return@withLock Result.failure(
+                            IllegalArgumentException("Cannot remove the primary German level. Change primary level first.")
+                        )
+                    }
+                    
+                    updateSelectedGermanLevels(currentLevels - trimmedLevel).getOrThrow()
+                    Result.success(false) // Level was removed
+                } else {
+                    // Adding level
+                    updateSelectedGermanLevels(currentLevels + trimmedLevel).getOrThrow()
+                    Result.success(true) // Level was added
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error toggling German level", e)
+                Result.failure(PreferencesException("Failed to toggle German level", e))
+            }
+        }
+    }
+    
+    /**
+     * Update German level with validation - LEGACY METHOD for backward compatibility.
+     * @deprecated Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead
+     */
+    @Deprecated("Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead")
+    suspend fun updateGermanLevel(level: String): Result<Unit> {
+        Log.w(TAG, "Using deprecated updateGermanLevel method. Consider migrating to multi-level methods.")
+        return writeMutex.withLock {
+            try {
+                updateSelectedGermanLevels(setOf(level)).getOrThrow()
+                updatePrimaryGermanLevel(level).getOrThrow()
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
     }
     
@@ -164,15 +288,14 @@ class UserPreferencesRepository(
                     )
                 }
                 
-                val safePreferences = preferences.withSafeDefaults()
-                Log.d(TAG, "Updating preferences: level=${safePreferences.germanLevel}, topics=${safePreferences.selectedTopics.size}")
+                Log.d(TAG, "Updating preferences: selectedLevels=${preferences.selectedGermanLevels}, primaryLevel=${preferences.primaryGermanLevel}, topics=${preferences.selectedTopics.size}")
                 
                 context.dataStore.edit { prefs ->
-                    prefs[PreferencesKeys.GERMAN_LEVEL] = safePreferences.germanLevel.name
-                    prefs[PreferencesKeys.NATIVE_LANGUAGE] = safePreferences.nativeLanguage
-                    prefs[PreferencesKeys.SELECTED_TOPICS] = safePreferences.selectedTopics
-                    prefs[PreferencesKeys.DELIVERY_FREQUENCY] = safePreferences.deliveryFrequency.name
-                    prefs[PreferencesKeys.IS_ONBOARDING_COMPLETED] = safePreferences.isOnboardingCompleted
+                    prefs[PreferencesKeys.SELECTED_GERMAN_LEVELS] = preferences.selectedGermanLevels
+                    prefs[PreferencesKeys.PRIMARY_GERMAN_LEVEL] = preferences.primaryGermanLevel
+                    prefs[PreferencesKeys.SELECTED_TOPICS] = preferences.selectedTopics
+                    prefs[PreferencesKeys.DELIVERY_FREQUENCY] = preferences.deliveryFrequency.name
+                    prefs[PreferencesKeys.IS_ONBOARDING_COMPLETED] = preferences.isOnboardingCompleted
                 }
                 
                 Log.d(TAG, "Preferences updated successfully")
@@ -255,7 +378,7 @@ class UserPreferencesRepository(
             
             if (!validationResult.isSuccess) {
                 Log.w(TAG, "Found invalid preferences, repairing: ${validationResult.errorMessage}")
-                val repairedPrefs = currentPrefs.withSafeDefaults()
+                val repairedPrefs = UserPreferences.createSafe()
                 updateUserPreferences(repairedPrefs).getOrThrow()
                 
                 Result.success(

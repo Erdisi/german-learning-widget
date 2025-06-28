@@ -74,9 +74,9 @@ class GermanLearningWidget : AppWidgetProvider() {
                 val preferencesRepository = UserPreferencesRepository(context)
                 val preferences = preferencesRepository.userPreferences.first()
                 
-                // Get sentence data
-                val sentence = sentenceRepository.getRandomSentence(
-                    level = preferences.germanLevel,
+                // Get sentence data using multi-level support
+                val sentence = sentenceRepository.getRandomSentenceFromLevels(
+                    levels = preferences.selectedGermanLevels,
                     topics = preferences.selectedTopics.toList()
                 )
                 
@@ -88,7 +88,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_german_text, sentence.germanText)
                     views.setTextViewText(R.id.widget_translation, sentence.translation)
                     views.setTextViewText(R.id.widget_topic, sentence.topic)
-                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                    views.setTextViewText(R.id.widget_level_indicator, sentence.level) // Show actual sentence level
                     
                     // Apply text customizations
                     WidgetCustomizationHelper.applyTextCustomizations(
@@ -111,7 +111,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_german_text, "Guten Tag!")
                     views.setTextViewText(R.id.widget_translation, "Good day!")
                     views.setTextViewText(R.id.widget_topic, "Greetings")
-                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                    views.setTextViewText(R.id.widget_level_indicator, preferences.primaryGermanLevel) // Show primary level
                     
                     // Apply text customizations to default content
                     WidgetCustomizationHelper.applyTextCustomizations(
@@ -264,7 +264,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                     // Get user level for display
                     val preferencesRepository = UserPreferencesRepository(context)
                     val preferences = preferencesRepository.userPreferences.first()
-                    views.setTextViewText(R.id.widget_level_indicator, preferences.germanLevel.displayName)
+                    views.setTextViewText(R.id.widget_level_indicator, preferences.primaryGermanLevel)
                     
                     // Apply text customizations
                     WidgetCustomizationHelper.applyTextCustomizations(

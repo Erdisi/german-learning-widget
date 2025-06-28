@@ -1,0 +1,412 @@
+# German Learning Widget - Development Rules & Context
+# This file provides comprehensive guidelines for AI assistants working on this project
+
+## Project Overview
+project_name: "German Learning Widget"
+project_type: "Android Native Application"
+primary_language: "Kotlin"
+target_platform: "Android (API 24+)"
+architecture: "MVVM with Repository Pattern"
+
+description: |
+  A native Android application that facilitates German language learning through innovative 
+  widget-based delivery. The app provides contextual German sentences directly on users' 
+  home screens, enabling passive learning throughout daily device usage. Features multiple 
+  widget types including standard bookmarks, Hero-style carousel widgets, and main learning widgets.
+
+## Tech Stack & Dependencies
+ui_framework: "Jetpack Compose"
+build_system: "Gradle with Kotlin DSL"
+architecture_components:
+  - "androidx.lifecycle.viewmodel-compose"
+  - "androidx.navigation.compose"
+  - "androidx.datastore.preferences"
+  - "androidx.work.runtime-ktx"
+widget_framework: "androidx.glance.appwidget"
+design_system: "Material Design 3"
+
+core_dependencies:
+  - "androidx.compose.ui"
+  - "androidx.compose.material3"
+  - "androidx.activity.compose"
+  - "kotlinx.coroutines"
+
+## Project Structure & Architecture
+
+### Directory Structure
+```
+app/src/main/
+├── java/com/germanleraningwidget/
+│   ├── data/
+│   │   ├── model/           # Data models (GermanSentence, UserPreferences)
+│   │   └── repository/      # Repository implementations
+│   ├── ui/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── screen/          # Screen composables
+│   │   ├── theme/           # Material Design theme
+│   │   └── viewmodel/       # ViewModels for state management
+│   ├── widget/              # Widget providers and implementations
+│   ├── worker/              # Background processing (WorkManager)
+│   ├── GermanLearningApplication.kt
+│   └── MainActivity.kt
+├── res/
+│   ├── drawable/           # Vector drawables and backgrounds
+│   ├── layout/             # Widget XML layouts
+│   ├── values/             # Strings, colors, themes
+│   └── xml/                # Widget configurations
+└── AndroidManifest.xml
+```
+
+### Architecture Layers
+1. **UI Layer**: Jetpack Compose screens and components
+2. **Domain Layer**: Business logic and use cases
+3. **Data Layer**: Repositories and data sources
+4. **Widget Layer**: Home screen widgets (RemoteViews)
+5. **Background Layer**: WorkManager for scheduled tasks
+
+## Component-Specific Rules
+
+### Widget Development Rules
+template_reference: "BookmarksWidget.kt and GermanLearningWidget.kt"
+
+widget_creation_steps:
+  1. "Create widget provider class extending AppWidgetProvider"
+  2. "Create XML layout in res/layout/ (ensure RemoteViews compatibility)"
+  3. "Create widget info XML in res/xml/"
+  4. "Register widget in AndroidManifest.xml"
+  5. "Add drawable resources for backgrounds and buttons"
+  6. "Update repository to notify widget of data changes"
+
+widget_naming_convention:
+  - "Class: [Purpose]Widget.kt (e.g., BookmarksHeroWidget.kt)"
+  - "Layout: widget_[purpose].xml (e.g., widget_bookmarks_hero.xml)"
+  - "Info: [purpose]_widget_info.xml (e.g., bookmarks_hero_widget_info.xml)"
+  - "Preview: widget_[purpose]_preview.xml"
+
+widget_remoteviews_constraints:
+  forbidden_attributes:
+    - "android:alpha (use color transparency instead)"
+    - "android:paddingHorizontal/Vertical (use individual padding)"
+    - "android:layout_marginVertical (use top/bottom margins)"
+    - "android:lineSpacingExtra (not supported)"
+  allowed_views:
+    - "LinearLayout, RelativeLayout, FrameLayout"
+    - "TextView, ImageView, ImageButton"
+    - "ProgressBar (limited styles)"
+  forbidden_views:
+    - "View (for decorative purposes)"
+    - "Complex nested structures"
+    - "Custom views"
+
+widget_best_practices:
+  - "Always test with lint for RemoteViews compatibility"
+  - "Use companion object for updateAllWidgets() method"
+  - "Implement proper error handling and empty states"
+  - "Use PendingIntent.FLAG_IMMUTABLE for Android 12+"
+  - "Cache widget data to avoid repeated repository calls"
+
+### Data Model Rules
+template_reference: "GermanSentence.kt and UserPreferences.kt"
+
+data_model_patterns:
+  - "Use data classes for immutable models"
+  - "Implement validation methods with Result<T> pattern"
+  - "Add companion objects for constants and factory methods"
+  - "Use sealed classes for states and results"
+  - "Implement proper equals/hashCode for caching"
+
+naming_conventions:
+  - "Data classes: PascalCase (e.g., GermanSentence)"
+  - "Properties: camelCase (e.g., germanText)"
+  - "Enums: SCREAMING_SNAKE_CASE (e.g., DIFFICULTY_LEVEL)"
+  - "Constants: UPPER_SNAKE_CASE in companion objects"
+
+validation_patterns:
+  - "Use sealed class ValidationResult for validation responses"
+  - "Implement extension functions for validation logic"
+  - "Return Result<T> for operations that can fail"
+  - "Use nullable types sparingly, prefer default values"
+
+### Repository Rules
+template_reference: "SentenceRepository.kt"
+
+repository_patterns:
+  - "Use singleton pattern with getInstance() method"
+  - "Implement StateFlow for reactive data"
+  - "Use mutex for thread-safe operations"
+  - "Cache frequently accessed data"
+  - "Provide both synchronous and Flow-based APIs"
+
+repository_structure:
+  required_methods:
+    - "getInstance(context: Context): RepositoryName"
+    - "initialize() for setup"
+    - "clearCache() for memory management"
+    - "getStatistics() for monitoring"
+
+error_handling:
+  - "Use try-catch blocks with proper logging"
+  - "Return Result<T> for operations that can fail"
+  - "Implement fallback mechanisms for critical operations"
+  - "Log errors with appropriate detail level"
+
+widget_integration:
+  - "Use reflection to notify widgets (avoid circular dependencies)"
+  - "Implement notifyWidgets() method for data changes"
+  - "Handle ClassNotFoundException gracefully"
+
+### Screen Development Rules
+template_reference: "HomeScreen.kt and OnboardingScreen.kt"
+
+screen_structure:
+  - "Create composable function with Screen suffix"
+  - "Use ViewModel for state management"
+  - "Implement proper navigation handling"
+  - "Follow Material Design 3 guidelines"
+
+composable_patterns:
+  - "Use @Composable annotation"
+  - "Pass ViewModel as parameter, not create inside"
+  - "Use collectAsState() for StateFlow observation"
+  - "Implement proper remember and rememberSaveable usage"
+
+navigation_rules:
+  - "Define navigation routes as constants"
+  - "Use type-safe navigation arguments"
+  - "Handle back navigation properly"
+  - "Implement deep linking where appropriate"
+
+### ViewModel Rules
+template_reference: "OnboardingViewModel.kt"
+
+viewmodel_patterns:
+  - "Extend ViewModel class"
+  - "Use StateFlow for UI state"
+  - "Implement proper coroutine scoping"
+  - "Use mutex for thread-safe state updates"
+
+state_management:
+  - "Create sealed class for UI states"
+  - "Use data classes for complex state"
+  - "Implement distinctUntilChanged for performance"
+  - "Handle loading, success, and error states"
+
+## Code Style & Conventions
+
+### Kotlin Style Guide
+- "Use 4 spaces for indentation"
+- "Line length: 120 characters maximum"
+- "Use trailing commas in multi-line constructs"
+- "Prefer expression functions for single expressions"
+- "NEVER use emoji icons in UI text - use Material Design icons instead for consistency and professionalism"
+
+### Import Organization
+```kotlin
+// Android/Kotlin standard library
+import android.content.Context
+import kotlinx.coroutines.flow.StateFlow
+
+// AndroidX libraries
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.ViewModel
+
+// Project imports
+import com.germanleraningwidget.data.model.GermanSentence
+```
+
+### Naming Conventions
+files:
+  - "Activities: [Name]Activity.kt"
+  - "Fragments: [Name]Fragment.kt"
+  - "Composables: [Name]Screen.kt or [Name]Component.kt"
+  - "ViewModels: [Name]ViewModel.kt"
+  - "Repositories: [Name]Repository.kt"
+  - "Workers: [Name]Worker.kt"
+
+classes_and_functions:
+  - "Classes: PascalCase"
+  - "Functions: camelCase"
+  - "Constants: UPPER_SNAKE_CASE"
+  - "Private members: prefix with underscore for StateFlow backing properties"
+
+### Documentation Standards
+- "Use KDoc for public APIs"
+- "Include @param and @return tags"
+- "Add usage examples for complex functions"
+- "Document thread safety guarantees"
+
+## Testing Guidelines
+
+### Unit Testing
+- "Test ViewModels with coroutine testing"
+- "Mock repositories and external dependencies"
+- "Test error conditions and edge cases"
+- "Use descriptive test method names"
+
+### Widget Testing
+- "Test widget updates and data synchronization"
+- "Verify RemoteViews compatibility"
+- "Test different screen sizes and orientations"
+- "Validate widget performance and memory usage"
+
+## Performance Guidelines
+
+### Memory Management
+- "Use lazy initialization where appropriate"
+- "Clear caches when memory pressure is high"
+- "Avoid memory leaks in ViewModels and repositories"
+- "Use weak references for listeners"
+
+### Widget Performance
+- "Minimize widget update frequency"
+- "Cache widget data to reduce repository calls"
+- "Use efficient layouts (avoid deep nesting)"
+- "Optimize image resources and backgrounds"
+
+### Background Processing
+- "Use WorkManager for scheduled tasks"
+- "Implement proper timeout handling"
+- "Respect battery optimization settings"
+- "Use appropriate work constraints"
+
+## Security & Privacy
+
+### Data Protection
+- "Encrypt sensitive user data"
+- "Use DataStore for preferences (not SharedPreferences)"
+- "Implement proper data validation"
+- "Follow privacy-by-design principles"
+
+### Permissions
+- "Request minimal permissions"
+- "Handle permission denials gracefully"
+- "Use runtime permissions for sensitive features"
+- "Document permission usage in manifest"
+
+## Build & Deployment
+
+### Gradle Configuration
+- "Use Kotlin DSL for build scripts"
+- "Enable code shrinking for release builds"
+- "Configure ProGuard rules appropriately"
+- "Use version catalogs for dependency management"
+
+### Release Process
+- "Test on multiple device types and API levels"
+- "Verify widget functionality on different launchers"
+- "Run full lint analysis before release"
+- "Update version code and name appropriately"
+
+## Troubleshooting Guide
+
+### Common Widget Issues
+widget_not_loading:
+  cause: "RemoteViews compatibility issues"
+  solution: "Check for unsupported attributes and views"
+  prevention: "Always run lint analysis for RemoteViews"
+
+widget_not_updating:
+  cause: "Missing widget notification calls"
+  solution: "Ensure repository calls notifyWidgets() on data changes"
+  prevention: "Add widget update calls to all data modification methods"
+
+### Build Issues
+compilation_errors:
+  - "Check Kotlin version compatibility"
+  - "Verify all imports are correct"
+  - "Ensure proper dependency versions"
+
+lint_failures:
+  - "Address RemoteViews compatibility warnings first"
+  - "Fix unused resource warnings"
+  - "Resolve API level compatibility issues"
+
+### Performance Issues
+slow_widget_updates:
+  cause: "Heavy operations on main thread"
+  solution: "Move operations to background threads"
+  prevention: "Use coroutines for all async operations"
+
+memory_leaks:
+  cause: "Retained references to Context or Activity"
+  solution: "Use Application context where possible"
+  prevention: "Review lifecycle-aware components usage"
+
+## Development Workflow
+
+### Feature Development
+1. "Create feature branch from main"
+2. "Implement feature following architecture patterns"
+3. "Add appropriate tests"
+4. "Run lint and build verification"
+5. "Update documentation if needed"
+6. "Create pull request with detailed description"
+
+### Code Review Checklist
+- "Follows established architecture patterns"
+- "Includes appropriate error handling"
+- "Has proper documentation"
+- "Passes all tests and lint checks"
+- "Maintains widget compatibility"
+- "Follows naming conventions"
+
+### Release Preparation
+- "Update PRD.md with new features"
+- "Verify all widgets work correctly"
+- "Test on minimum API level (24)"
+- "Run performance testing"
+- "Update version information"
+
+## AI Assistant Guidelines
+
+### When Adding New Features
+1. "Always reference existing similar components"
+2. "Follow established patterns and conventions"
+3. "Consider widget impact and update requirements"
+4. "Implement proper error handling and validation"
+5. "Add appropriate logging and monitoring"
+
+### When Debugging Issues
+1. "Check lint output for RemoteViews compatibility"
+2. "Verify widget registration in AndroidManifest.xml"
+3. "Ensure proper thread usage (main vs background)"
+4. "Check for memory leaks and performance issues"
+5. "Validate data flow from repository to UI"
+
+### When Refactoring Code
+1. "Maintain existing public APIs where possible"
+2. "Update all affected widgets and components"
+3. "Ensure backward compatibility"
+4. "Update tests and documentation"
+5. "Verify performance impact"
+
+### Code Generation Preferences
+- "Prefer explicit types over var/val inference when clarity improves"
+- "Use meaningful variable and function names"
+- "Include comprehensive error handling"
+- "Add appropriate logging statements"
+- "Follow Material Design 3 principles for UI components"
+
+## Project-Specific Context
+
+### Widget Types Implemented
+1. **GermanLearningWidget**: Main learning widget with sentence delivery
+2. **BookmarksWidget**: Standard bookmark browsing widget
+3. **BookmarksHeroWidget**: Material Design 3 Hero carousel widget
+
+### Key Data Models
+- **GermanSentence**: Core content model with validation and caching
+- **UserPreferences**: User settings with DataStore persistence
+
+### Background Processing
+- **SentenceDeliveryWorker**: Scheduled sentence updates with timeout protection
+- **Widget synchronization**: Cross-widget data synchronization system
+
+### Current State
+- "Production-ready codebase with comprehensive optimizations"
+- "All widgets tested and RemoteViews compatible"
+- "Full MVVM architecture implementation"
+- "Material Design 3 compliance"
+- "Comprehensive error handling and validation"
+
+This rules file should be referenced for all development decisions and code generation tasks related to the German Learning Widget project. 

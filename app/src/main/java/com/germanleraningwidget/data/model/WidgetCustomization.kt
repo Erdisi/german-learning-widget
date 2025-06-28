@@ -3,13 +3,14 @@ package com.germanleraningwidget.data.model
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 
+
 /**
  * Widget customization settings for individual widget types.
  * Each widget can have its own unique customization settings.
  */
 data class WidgetCustomization(
     val widgetType: WidgetType,
-    val backgroundColor: WidgetBackgroundColor = WidgetBackgroundColor.DEFAULT,
+    val backgroundColor: WidgetBackgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType),
     val germanTextSize: WidgetTextSize = WidgetTextSize.MEDIUM,
     val translatedTextSize: WidgetTextSize = WidgetTextSize.MEDIUM,
     val textContrast: WidgetTextContrast = WidgetTextContrast.NORMAL
@@ -19,8 +20,20 @@ data class WidgetCustomization(
      * Validates widget customization settings.
      */
     fun validate(): ValidationResult {
-        // All enum values are inherently valid
-        return ValidationResult.Success
+        return try {
+            // Basic validation
+            if (germanTextSize.scaleFactor < 0.5f || germanTextSize.scaleFactor > 2.0f) {
+                return ValidationResult.Error("German text size scale factor must be between 0.5 and 2.0")
+            }
+            
+            if (translatedTextSize.scaleFactor < 0.5f || translatedTextSize.scaleFactor > 2.0f) {
+                return ValidationResult.Error("Translated text size scale factor must be between 0.5 and 2.0")
+            }
+            
+            ValidationResult.Success
+        } catch (e: Exception) {
+            ValidationResult.Error("Invalid customization: ${e.message}")
+        }
     }
     
     /**
@@ -48,6 +61,8 @@ data class WidgetCustomization(
         append(" • Contrast: ${textContrast.displayName}")
     }
     
+
+    
     companion object {
         /**
          * Create default customization for a widget type.
@@ -71,6 +86,8 @@ data class WidgetCustomization(
                 textContrast = WidgetTextContrast.HIGH
             )
         }
+        
+
     }
     
     /**
@@ -222,6 +239,8 @@ enum class WidgetTextContrast(
         fun getAllContrasts(): List<WidgetTextContrast> = values().toList()
     }
 }
+
+
 
 /**
  * Complete widget customization container for all widgets.

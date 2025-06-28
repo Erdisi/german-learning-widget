@@ -164,17 +164,22 @@ class SentenceDeliveryWorker(
                 return Result.failure(workDataOf("error" to "Failed to load preferences: ${e.message}"))
             }
             
-            Log.d(TAG, "Loaded preferences: level=${preferences.germanLevel}, topics=${preferences.selectedTopics.size}")
+            Log.d(TAG, "Loaded preferences: levels=${preferences.selectedGermanLevels}, primary=${preferences.primaryGermanLevel}, topics=${preferences.selectedTopics.size}")
             
             // Validate preferences
+            if (preferences.selectedGermanLevels.isEmpty()) {
+                Log.w(TAG, "No German levels selected, using default A1")
+                return Result.failure(workDataOf("error" to "No German levels selected"))
+            }
+            
             if (preferences.selectedTopics.isEmpty()) {
                 Log.w(TAG, "No topics selected, using default")
                 return Result.failure(workDataOf("error" to "No topics selected"))
             }
             
-            // Get random sentence
-            val sentence = sentenceRepository.getRandomSentence(
-                level = preferences.germanLevel,
+            // Get random sentence using multi-level support
+            val sentence = sentenceRepository.getRandomSentenceFromLevels(
+                levels = preferences.selectedGermanLevels,
                 topics = preferences.selectedTopics.toList()
             )
             
@@ -196,7 +201,7 @@ class SentenceDeliveryWorker(
                     Result.failure(workDataOf("error" to updateResult.error))
                 }
             } ?: run {
-                Log.e(TAG, "No sentence found for level ${preferences.germanLevel} and topics ${preferences.selectedTopics}")
+                Log.e(TAG, "No sentence found for levels ${preferences.selectedGermanLevels} and topics ${preferences.selectedTopics}")
                 Result.failure(workDataOf("error" to "No matching sentences found"))
             }
             
@@ -245,7 +250,7 @@ class SentenceDeliveryWorker(
                     putExtra("translation", sentence.translation)
                     putExtra("topic", sentence.topic)
                     putExtra("sentence_id", sentence.id)
-                    putExtra("level", sentence.level.name)
+                    putExtra("level", sentence.level)
                 }
                 
                 // Send broadcast to update widgets
