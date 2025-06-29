@@ -3,11 +3,10 @@ package com.germanleraningwidget.ui.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.germanleraningwidget.data.model.DeliveryFrequency
 import com.germanleraningwidget.data.model.GermanLevel
 import com.germanleraningwidget.data.model.UserPreferences
 import com.germanleraningwidget.data.repository.UserPreferencesRepository
-import com.germanleraningwidget.worker.SentenceDeliveryWorker
+
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,7 +75,6 @@ class OnboardingViewModel(
                         old.selectedGermanLevels == new.selectedGermanLevels &&
                         old.primaryGermanLevel == new.primaryGermanLevel &&
                         old.selectedTopics == new.selectedTopics &&
-                        old.deliveryFrequency == new.deliveryFrequency &&
                         old.isOnboardingCompleted == new.isOnboardingCompleted
                     }
                     .catch { e ->
@@ -91,7 +89,6 @@ class OnboardingViewModel(
                                 val needsUpdate = currentState.selectedGermanLevels != preferences.selectedGermanLevels ||
                                         currentState.primaryGermanLevel != preferences.primaryGermanLevel ||
                                         currentState.selectedTopics != preferences.selectedTopics ||
-                                        currentState.selectedFrequency != preferences.deliveryFrequency ||
                                         currentState.isOnboardingCompleted != preferences.isOnboardingCompleted ||
                                         currentState.isLoading
                                 
@@ -100,7 +97,6 @@ class OnboardingViewModel(
                                         selectedGermanLevels = preferences.selectedGermanLevels.toSet(), // Fixed: Ensure immutability
                                         primaryGermanLevel = preferences.primaryGermanLevel,
                                         selectedTopics = preferences.selectedTopics.toMutableSet(),
-                                        selectedFrequency = preferences.deliveryFrequency,
                                         isOnboardingCompleted = preferences.isOnboardingCompleted,
                                         isLoading = false,
                                         error = null
@@ -228,12 +224,7 @@ class OnboardingViewModel(
         _uiState.value = _uiState.value.copy(selectedTopics = topics.toMutableSet())
     }
     
-    /**
-     * Update delivery frequency
-     */
-    fun updateDeliveryFrequency(frequency: DeliveryFrequency) {
-        _uiState.value = _uiState.value.copy(selectedFrequency = frequency)
-    }
+
     
     /**
      * Complete onboarding and save preferences
@@ -258,7 +249,6 @@ class OnboardingViewModel(
                     selectedGermanLevels = currentState.selectedGermanLevels,
                     primaryGermanLevel = currentState.primaryGermanLevel,
                     selectedTopics = currentState.selectedTopics.toSet(),
-                    deliveryFrequency = currentState.selectedFrequency,
                     isOnboardingCompleted = true
                 )
                 
@@ -291,7 +281,7 @@ class OnboardingViewModel(
     /**
      * Save user preferences with comprehensive validation.
      */
-    suspend fun savePreferences(): Result<DeliveryFrequency> {
+    suspend fun savePreferences(): Result<Unit> {
         return try {
             stateMutex.withLock {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -310,7 +300,6 @@ class OnboardingViewModel(
                 selectedGermanLevels = currentState.selectedGermanLevels,
                 primaryGermanLevel = currentState.primaryGermanLevel,
                 selectedTopics = currentState.selectedTopics.toSet(),
-                deliveryFrequency = currentState.selectedFrequency,
                 isOnboardingCompleted = true
             )
             
@@ -328,7 +317,7 @@ class OnboardingViewModel(
             }
             
             Log.i(TAG, "Preferences saved successfully")
-            Result.success(currentState.selectedFrequency)
+            Result.success(Unit)
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save preferences", e)
@@ -447,7 +436,6 @@ data class OnboardingUiState(
     
     // Other preferences
     val selectedTopics: MutableSet<String> = mutableSetOf(),
-    val selectedFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
     
     // UI state
     val isLoading: Boolean = false,

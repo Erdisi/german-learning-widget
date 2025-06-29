@@ -13,8 +13,75 @@ data class WidgetCustomization(
     val backgroundColor: WidgetBackgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType),
     val germanTextSize: WidgetTextSize = WidgetTextSize.MEDIUM,
     val translatedTextSize: WidgetTextSize = WidgetTextSize.MEDIUM,
-    val textContrast: WidgetTextContrast = WidgetTextContrast.NORMAL
+    val textContrast: WidgetTextContrast = WidgetTextContrast.NORMAL,
+    val sentencesPerDay: Int = DEFAULT_SENTENCES_PER_DAY
 ) {
+    
+    companion object {
+        const val MIN_SENTENCES_PER_DAY = 1
+        const val MAX_SENTENCES_PER_DAY = 10
+        const val DEFAULT_SENTENCES_PER_DAY = 3
+        
+        /**
+         * Get recommended update intervals in minutes for sentences per day.
+         * Distributes updates throughout a 16-hour active day (6 AM to 10 PM).
+         */
+        fun getUpdateIntervalMinutes(sentencesPerDay: Int): Int {
+            val activeHours = 16 // 6 AM to 10 PM
+            val activeMinutes = activeHours * 60
+            return (activeMinutes / sentencesPerDay.coerceIn(MIN_SENTENCES_PER_DAY, MAX_SENTENCES_PER_DAY))
+                .coerceAtLeast(15) // Respect WorkManager 15-minute minimum
+        }
+        
+        /**
+         * Get daily schedule for sentence delivery.
+         * Returns list of hour offsets from 6 AM for when to deliver sentences.
+         */
+        fun getDailySchedule(sentencesPerDay: Int): List<Int> {
+            val validCount = sentencesPerDay.coerceIn(MIN_SENTENCES_PER_DAY, MAX_SENTENCES_PER_DAY)
+            val baseHour = 6 // Start at 6 AM
+            val activeHours = 16 // Until 10 PM
+            
+            return when (validCount) {
+                1 -> listOf(6) // 12 PM (noon)
+                2 -> listOf(2, 10) // 8 AM, 4 PM
+                3 -> listOf(1, 6, 11) // 7 AM, 12 PM, 5 PM
+                4 -> listOf(1, 4, 8, 12) // 7 AM, 10 AM, 2 PM, 6 PM
+                5 -> listOf(0, 3, 6, 9, 13) // 6 AM, 9 AM, 12 PM, 3 PM, 7 PM
+                6 -> listOf(0, 2, 5, 8, 11, 14) // 6 AM, 8 AM, 11 AM, 2 PM, 5 PM, 8 PM
+                7 -> listOf(0, 2, 4, 6, 9, 12, 15) // Every 2-3 hours
+                8 -> listOf(0, 2, 4, 6, 8, 10, 13, 16) // Every 2 hours
+                9 -> listOf(0, 1, 3, 5, 7, 9, 11, 14, 16) // Frequent updates
+                10 -> listOf(0, 1, 2, 4, 6, 8, 10, 12, 14, 16) // Maximum frequency
+                else -> listOf(6) // Fallback
+            }.map { it + baseHour } // Convert to actual hours (6 AM + offset)
+        }
+        
+        /**
+         * Create default customization for a widget type.
+         */
+        fun createDefault(widgetType: WidgetType): WidgetCustomization {
+            return WidgetCustomization(
+                widgetType = widgetType,
+                backgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType),
+                sentencesPerDay = DEFAULT_SENTENCES_PER_DAY
+            )
+        }
+        
+        /**
+         * Create high contrast customization for accessibility.
+         */
+        fun createHighContrast(widgetType: WidgetType): WidgetCustomization {
+            return WidgetCustomization(
+                widgetType = widgetType,
+                backgroundColor = WidgetBackgroundColor.STONE,
+                germanTextSize = WidgetTextSize.LARGE,
+                translatedTextSize = WidgetTextSize.LARGE,
+                textContrast = WidgetTextContrast.HIGH,
+                sentencesPerDay = DEFAULT_SENTENCES_PER_DAY
+            )
+        }
+    }
     
     /**
      * Validates widget customization settings.
@@ -28,6 +95,11 @@ data class WidgetCustomization(
             
             if (translatedTextSize.scaleFactor < 0.5f || translatedTextSize.scaleFactor > 2.0f) {
                 return ValidationResult.Error("Translated text size scale factor must be between 0.5 and 2.0")
+            }
+            
+            // Validate sentences per day
+            if (sentencesPerDay < MIN_SENTENCES_PER_DAY || sentencesPerDay > MAX_SENTENCES_PER_DAY) {
+                return ValidationResult.Error("Sentences per day must be between $MIN_SENTENCES_PER_DAY and $MAX_SENTENCES_PER_DAY")
             }
             
             ValidationResult.Success
@@ -44,7 +116,11 @@ data class WidgetCustomization(
     /**
      * Create a copy with safe defaults.
      */
-    fun withSafeDefaults(): WidgetCustomization = this
+    fun withSafeDefaults(): WidgetCustomization {
+        return copy(
+            sentencesPerDay = sentencesPerDay.coerceIn(MIN_SENTENCES_PER_DAY, MAX_SENTENCES_PER_DAY)
+        )
+    }
     
     /**
      * Get display name for the customization.
@@ -59,36 +135,20 @@ data class WidgetCustomization(
         append(" • German: ${germanTextSize.displayName}")
         append(" • Translation: ${translatedTextSize.displayName}")
         append(" • Contrast: ${textContrast.displayName}")
+        append(" • ${sentencesPerDay}/day")
     }
     
-
+    /**
+     * Get update interval in minutes for this widget.
+     */
+    val updateIntervalMinutes: Int get() = getUpdateIntervalMinutes(sentencesPerDay)
     
-    companion object {
-        /**
-         * Create default customization for a widget type.
-         */
-        fun createDefault(widgetType: WidgetType): WidgetCustomization {
-            return WidgetCustomization(
-                widgetType = widgetType,
-                backgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType)
-            )
-        }
-        
-        /**
-         * Create high contrast customization for accessibility.
-         */
-        fun createHighContrast(widgetType: WidgetType): WidgetCustomization {
-            return WidgetCustomization(
-                widgetType = widgetType,
-                backgroundColor = WidgetBackgroundColor.DARK,
-                germanTextSize = WidgetTextSize.LARGE,
-                translatedTextSize = WidgetTextSize.LARGE,
-                textContrast = WidgetTextContrast.HIGH
-            )
-        }
-        
+    /**
+     * Get daily delivery schedule for this widget.
+     */
+    val dailySchedule: List<Int> get() = getDailySchedule(sentencesPerDay)
 
-    }
+
     
     /**
      * Validation result for widget customization.
@@ -132,38 +192,39 @@ enum class WidgetBackgroundColor(
     val startColor: Color,
     val centerColor: Color,
     val endColor: Color,
+    val textColor: Color,
     val description: String
 ) {
-    DEFAULT("default", "Default Blue", 
-        Color(0xFF667eea), Color(0xFF764ba2), Color(0xFFf093fb), 
-        "Original gradient (Purple-Pink)"),
-    BOOKMARKS("bookmarks", "Bookmarks Orange", 
-        Color(0xFFFF6B35), Color(0xFFF7931E), Color(0xFFFFD23F), 
-        "Orange sunset gradient"),
-    HERO("hero", "Hero Blue", 
-        Color(0xFF1A237E), Color(0xFF3949AB), Color(0xFF5C6BC0), 
-        "Deep blue professional gradient"),
-    OCEAN("ocean", "Ocean Blue", 
-        Color(0xFF0575E6), Color(0xFF021B79), Color(0xFF005aa7), 
-        "Deep ocean blue gradient"),
-    FOREST("forest", "Forest Green", 
-        Color(0xFF134E5E), Color(0xFF71B280), Color(0xFF8BC34A), 
-        "Nature-inspired green gradient"),
-    SUNSET("sunset", "Sunset Red", 
-        Color(0xFFe65c00), Color(0xFFFF5722), Color(0xFFFF8A65), 
-        "Warm sunset gradient"),
-    PURPLE("purple", "Royal Purple", 
-        Color(0xFF667eea), Color(0xFF764ba2), Color(0xFF9575CD), 
-        "Royal purple gradient"),
-    TEAL("teal", "Modern Teal", 
-        Color(0xFF11998e), Color(0xFF38ef7d), Color(0xFF4CAF50), 
-        "Fresh teal gradient"),
-    DARK("dark", "Dark Professional", 
-        Color(0xFF2C3E50), Color(0xFF4A6741), Color(0xFF34495E), 
-        "Professional dark gradient"),
-    LIGHT("light", "Light Minimal", 
-        Color(0xFFF7F7F7), Color(0xFFE8E8E8), Color(0xFFDDDDDD), 
-        "Clean minimal light gradient");
+    CREAM("cream", "Cream", 
+        Color(0xFFFFFCF2), Color(0xFFFFFCF2), Color(0xFFFFFCF2), Color(0xFF2B2675),
+        "Clean cream background"),
+    LIME("lime", "Lime Green", 
+        Color(0xFFD1D84E), Color(0xFFD1D84E), Color(0xFFD1D84E), Color(0xFF2B2675),
+        "Bright lime green"),
+    LAVENDER("lavender", "Lavender", 
+        Color(0xFFE6EAFF), Color(0xFFE6EAFF), Color(0xFFE6EAFF), Color(0xFF2B2675),
+        "Soft lavender blue"),
+    PURPLE("purple", "Purple", 
+        Color(0xFFA99BF7), Color(0xFFA99BF7), Color(0xFFA99BF7), Color(0xFFFFFFFF),
+        "Rich purple"),
+    ORANGE("orange", "Orange", 
+        Color(0xFFE88E3D), Color(0xFFE88E3D), Color(0xFFE88E3D), Color(0xFFFFFFFF),
+        "Vibrant orange"),
+    NAVY("navy", "Navy Blue", 
+        Color(0xFF2B2675), Color(0xFF2B2675), Color(0xFF2B2675), Color(0xFFFFFFFF),
+        "Deep navy blue"),
+    CORAL("coral", "Coral", 
+        Color(0xFFFF7B7B), Color(0xFFFF7B7B), Color(0xFFFF7B7B), Color(0xFFFFFFFF),
+        "Warm coral"),
+    SAGE("sage", "Sage Green", 
+        Color(0xFF87A96B), Color(0xFF87A96B), Color(0xFF87A96B), Color(0xFFFFFFFF),
+        "Natural sage green"),
+    STONE("stone", "Stone Gray", 
+        Color(0xFF8B8680), Color(0xFF8B8680), Color(0xFF8B8680), Color(0xFFFFFFFF),
+        "Neutral stone gray"),
+    PEACH("peach", "Peach", 
+        Color(0xFFFFB085), Color(0xFFFFB085), Color(0xFFFFB085), Color(0xFF2B2675),
+        "Soft peach");
     
     /**
      * Get primary color (start color) as ARGB integer for widget usage.
@@ -179,16 +240,16 @@ enum class WidgetBackgroundColor(
     
     companion object {
         fun fromKey(key: String): WidgetBackgroundColor {
-            return values().find { it.key == key } ?: DEFAULT
+            return values().find { it.key == key } ?: CREAM
         }
         
         fun getAllColors(): List<WidgetBackgroundColor> = values().toList()
         
         fun getDefaultForWidget(widgetType: WidgetType): WidgetBackgroundColor {
             return when (widgetType) {
-                WidgetType.MAIN -> DEFAULT
-                WidgetType.BOOKMARKS -> BOOKMARKS
-                WidgetType.HERO -> HERO
+                WidgetType.MAIN -> CREAM
+                WidgetType.BOOKMARKS -> ORANGE
+                WidgetType.HERO -> NAVY
             }
         }
     }

@@ -12,9 +12,9 @@
     <string name="your_learning_profile">Your Learning Profile</string>
     <string name="level_label">Level</string>
     <string name="topics_label">Topics</string>
-    <string name="frequency_label">Frequency</string>
+
     <string name="topics_selected">%d selected</string>
-    <string name="edit_preferences">Edit Preferences</string>
+    <string name="edit_preferences">Learning Preferences</string>
     <string name="add_your_widget">Add Your Widget</string>
     <string name="setup_button">Setup</string>
     <string name="quick_setup_instructions">Quick Setup Instructions:</string>
@@ -35,6 +35,18 @@
     <string name="demo_topic_weather">Weather</string>
     <string name="bookmarks_count">%d saved</string>
     
+    <!-- Widget customization strings -->
+    <string name="sentences_per_day_title">Sentences per Day</string>
+    <string name="sentences_per_day_description">Control how often your widget shows new sentences throughout the day</string>
+    <string name="sentences_per_day_current_selection">%d sentences per day</string>
+    <string name="sentences_per_day_update_interval">Updates every %d minutes</string>
+    <string name="sentences_per_day_select_label">Select sentences per day: %d</string>
+    <string name="sentences_per_day_min_label">%d per day</string>
+    <string name="sentences_per_day_max_label">%d per day</string>
+    <string name="sentences_per_day_quick_select">Quick Select:</string>
+    <string name="sentences_per_day_quick_button">%d/day</string>
+
+    
     <!-- Content descriptions for accessibility -->
     <string name="welcome_icon_description">Welcome icon</string>
     <string name="widgets_icon_description">Widgets icon</string>
@@ -47,4 +59,7 @@
     <string name="bookmark_button_description">Bookmark sentence</string>
     <string name="navigation_arrow_description">Navigation arrow</string>
     <string name="preview_dots_description">Preview indicator dots</string>
+    <string name="sentences_per_day_icon_description">Sentences per day icon</string>
+    <string name="sentences_per_day_slider_description">Sentences per day slider</string>
+    <string name="sentences_per_day_info_icon_description">Information icon</string>
 </resources>

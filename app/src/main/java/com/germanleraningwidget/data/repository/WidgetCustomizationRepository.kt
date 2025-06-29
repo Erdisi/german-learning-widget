@@ -6,6 +6,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.germanleraningwidget.data.model.*
+import com.germanleraningwidget.worker.SentenceDeliveryWorker
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -60,18 +61,21 @@ class WidgetCustomizationRepository(
         val MAIN_GERMAN_TEXT_SIZE = stringPreferencesKey("main_german_text_size")
         val MAIN_TRANSLATED_TEXT_SIZE = stringPreferencesKey("main_translated_text_size")
         val MAIN_TEXT_CONTRAST = stringPreferencesKey("main_text_contrast")
+        val MAIN_SENTENCES_PER_DAY = intPreferencesKey("main_sentences_per_day")
         
         // Bookmarks Widget
         val BOOKMARKS_BACKGROUND_COLOR = stringPreferencesKey("bookmarks_background_color")
         val BOOKMARKS_GERMAN_TEXT_SIZE = stringPreferencesKey("bookmarks_german_text_size")
         val BOOKMARKS_TRANSLATED_TEXT_SIZE = stringPreferencesKey("bookmarks_translated_text_size")
         val BOOKMARKS_TEXT_CONTRAST = stringPreferencesKey("bookmarks_text_contrast")
+        val BOOKMARKS_SENTENCES_PER_DAY = intPreferencesKey("bookmarks_sentences_per_day")
         
         // Hero Widget
         val HERO_BACKGROUND_COLOR = stringPreferencesKey("hero_background_color")
         val HERO_GERMAN_TEXT_SIZE = stringPreferencesKey("hero_german_text_size")
         val HERO_TRANSLATED_TEXT_SIZE = stringPreferencesKey("hero_translated_text_size")
         val HERO_TEXT_CONTRAST = stringPreferencesKey("hero_text_contrast")
+        val HERO_SENTENCES_PER_DAY = intPreferencesKey("hero_sentences_per_day")
     }
     
     /**
@@ -106,7 +110,7 @@ class WidgetCustomizationRepository(
             mainWidget = WidgetCustomization(
                 widgetType = WidgetType.MAIN,
                 backgroundColor = WidgetBackgroundColor.fromKey(
-                    preferences[PreferencesKeys.MAIN_BACKGROUND_COLOR] ?: WidgetBackgroundColor.DEFAULT.key
+                    preferences[PreferencesKeys.MAIN_BACKGROUND_COLOR] ?: WidgetBackgroundColor.CREAM.key
                 ),
                 germanTextSize = WidgetTextSize.fromKey(
                     preferences[PreferencesKeys.MAIN_GERMAN_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
@@ -116,12 +120,13 @@ class WidgetCustomizationRepository(
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.MAIN_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
-                )
+                ),
+                sentencesPerDay = preferences[PreferencesKeys.MAIN_SENTENCES_PER_DAY] ?: WidgetCustomization.DEFAULT_SENTENCES_PER_DAY
             ),
             bookmarksWidget = WidgetCustomization(
                 widgetType = WidgetType.BOOKMARKS,
                 backgroundColor = WidgetBackgroundColor.fromKey(
-                    preferences[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] ?: WidgetBackgroundColor.DEFAULT.key
+                    preferences[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] ?: WidgetBackgroundColor.ORANGE.key
                 ),
                 germanTextSize = WidgetTextSize.fromKey(
                     preferences[PreferencesKeys.BOOKMARKS_GERMAN_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
@@ -131,12 +136,13 @@ class WidgetCustomizationRepository(
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
-                )
+                ),
+                sentencesPerDay = preferences[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] ?: WidgetCustomization.DEFAULT_SENTENCES_PER_DAY
             ),
             heroWidget = WidgetCustomization(
                 widgetType = WidgetType.HERO,
                 backgroundColor = WidgetBackgroundColor.fromKey(
-                    preferences[PreferencesKeys.HERO_BACKGROUND_COLOR] ?: WidgetBackgroundColor.DEFAULT.key
+                    preferences[PreferencesKeys.HERO_BACKGROUND_COLOR] ?: WidgetBackgroundColor.NAVY.key
                 ),
                 germanTextSize = WidgetTextSize.fromKey(
                     preferences[PreferencesKeys.HERO_GERMAN_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
@@ -146,7 +152,8 @@ class WidgetCustomizationRepository(
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.HERO_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
-                )
+                ),
+                sentencesPerDay = preferences[PreferencesKeys.HERO_SENTENCES_PER_DAY] ?: WidgetCustomization.DEFAULT_SENTENCES_PER_DAY
             )
         )
     }
@@ -171,24 +178,36 @@ class WidgetCustomizationRepository(
                             prefs[PreferencesKeys.MAIN_GERMAN_TEXT_SIZE] = customization.germanTextSize.key
                             prefs[PreferencesKeys.MAIN_TRANSLATED_TEXT_SIZE] = customization.translatedTextSize.key
                             prefs[PreferencesKeys.MAIN_TEXT_CONTRAST] = customization.textContrast.key
+                            prefs[PreferencesKeys.MAIN_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                         WidgetType.BOOKMARKS -> {
                             prefs[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] = customization.backgroundColor.key
                             prefs[PreferencesKeys.BOOKMARKS_GERMAN_TEXT_SIZE] = customization.germanTextSize.key
                             prefs[PreferencesKeys.BOOKMARKS_TRANSLATED_TEXT_SIZE] = customization.translatedTextSize.key
                             prefs[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] = customization.textContrast.key
+                            prefs[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                         WidgetType.HERO -> {
                             prefs[PreferencesKeys.HERO_BACKGROUND_COLOR] = customization.backgroundColor.key
                             prefs[PreferencesKeys.HERO_GERMAN_TEXT_SIZE] = customization.germanTextSize.key
                             prefs[PreferencesKeys.HERO_TRANSLATED_TEXT_SIZE] = customization.translatedTextSize.key
                             prefs[PreferencesKeys.HERO_TEXT_CONTRAST] = customization.textContrast.key
+                            prefs[PreferencesKeys.HERO_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                     }
                 }
                 
                 // Trigger simple widget update using new helper
                 com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, customization.widgetType)
+                
+                // Reschedule worker with new frequency settings
+                try {
+                    SentenceDeliveryWorker.scheduleWork(context)
+                    Log.d(TAG, "Worker rescheduled with updated frequency settings")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reschedule worker after customization update", e)
+                    // Don't fail the entire operation if worker scheduling fails
+                }
                 
                 Log.d(TAG, "Widget customization updated successfully for ${customization.widgetType.displayName}")
                 Result.success(Unit)
@@ -222,24 +241,36 @@ class WidgetCustomizationRepository(
                     prefs[PreferencesKeys.MAIN_GERMAN_TEXT_SIZE] = customizations.mainWidget.germanTextSize.key
                     prefs[PreferencesKeys.MAIN_TRANSLATED_TEXT_SIZE] = customizations.mainWidget.translatedTextSize.key
                     prefs[PreferencesKeys.MAIN_TEXT_CONTRAST] = customizations.mainWidget.textContrast.key
+                    prefs[PreferencesKeys.MAIN_SENTENCES_PER_DAY] = customizations.mainWidget.sentencesPerDay
                     
                     // Bookmarks widget
                     prefs[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] = customizations.bookmarksWidget.backgroundColor.key
                     prefs[PreferencesKeys.BOOKMARKS_GERMAN_TEXT_SIZE] = customizations.bookmarksWidget.germanTextSize.key
                     prefs[PreferencesKeys.BOOKMARKS_TRANSLATED_TEXT_SIZE] = customizations.bookmarksWidget.translatedTextSize.key
                     prefs[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] = customizations.bookmarksWidget.textContrast.key
+                    prefs[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] = customizations.bookmarksWidget.sentencesPerDay
                     
                     // Hero widget
                     prefs[PreferencesKeys.HERO_BACKGROUND_COLOR] = customizations.heroWidget.backgroundColor.key
                     prefs[PreferencesKeys.HERO_GERMAN_TEXT_SIZE] = customizations.heroWidget.germanTextSize.key
                     prefs[PreferencesKeys.HERO_TRANSLATED_TEXT_SIZE] = customizations.heroWidget.translatedTextSize.key
                     prefs[PreferencesKeys.HERO_TEXT_CONTRAST] = customizations.heroWidget.textContrast.key
+                    prefs[PreferencesKeys.HERO_SENTENCES_PER_DAY] = customizations.heroWidget.sentencesPerDay
                 }
                 
                 // Trigger updates for all widget types using new helper
                 com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, WidgetType.MAIN)
                 com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, WidgetType.BOOKMARKS)
                 com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, WidgetType.HERO)
+                
+                // Reschedule worker with new frequency settings
+                try {
+                    SentenceDeliveryWorker.scheduleWork(context)
+                    Log.d(TAG, "Worker rescheduled with updated frequency settings")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to reschedule worker after all customizations update", e)
+                    // Don't fail the entire operation if worker scheduling fails
+                }
                 
                 Log.d(TAG, "All widget customizations updated successfully")
                 Result.success(Unit)

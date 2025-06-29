@@ -2,12 +2,8 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     
-    <gradient
-        android:angle="135"
-        android:startColor="#667eea"
-        android:centerColor="#764ba2"
-        android:endColor="#f093fb"
-        android:type="linear" />
+    <!-- Updated to use Cream (#FFFCF2) - Main Widget default -->
+    <solid android:color="#FFFCF2" />
     
     <corners android:radius="16dp" />
     

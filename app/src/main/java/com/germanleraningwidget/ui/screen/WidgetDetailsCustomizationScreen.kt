@@ -134,7 +134,8 @@ fun WidgetDetailsCustomizationScreen(
                 title = { 
                     Text(
                         text = widgetType.displayName,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     ) 
                 },
                 navigationIcon = {
@@ -187,7 +188,10 @@ fun WidgetDetailsCustomizationScreen(
                             contentDescription = "Reset to Default"
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { innerPadding ->
@@ -280,6 +284,17 @@ fun WidgetDetailsCustomizationScreen(
                     onColorSelected = { color ->
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                         pendingCustomization = (pendingCustomization ?: currentCustomization).copy(backgroundColor = color)
+                    }
+                )
+            }
+            
+            // Sentences per Day Section
+            item {
+                SentencesPerDaySection(
+                    currentSentencesPerDay = (pendingCustomization ?: currentCustomization).sentencesPerDay,
+                    onSentencesPerDaySelected = { count ->
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        pendingCustomization = (pendingCustomization ?: currentCustomization).copy(sentencesPerDay = count)
                     }
                 )
             }
@@ -1034,6 +1049,121 @@ private fun TextContrastSection(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Sentences per Day Selection Component.
+ */
+@Composable
+private fun SentencesPerDaySection(
+    currentSentencesPerDay: Int,
+    onSentencesPerDaySelected: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Sentences per Day",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Control how often your widget shows new sentences throughout the day",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Slider
+            Column {
+                Text(
+                    text = "Select sentences per day: $currentSentencesPerDay",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Slider(
+                    value = currentSentencesPerDay.toFloat(),
+                    onValueChange = { value ->
+                        onSentencesPerDaySelected(value.toInt())
+                    },
+                    valueRange = WidgetCustomization.MIN_SENTENCES_PER_DAY.toFloat()..WidgetCustomization.MAX_SENTENCES_PER_DAY.toFloat(),
+                    steps = WidgetCustomization.MAX_SENTENCES_PER_DAY - WidgetCustomization.MIN_SENTENCES_PER_DAY - 1,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                // Range labels
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "${WidgetCustomization.MIN_SENTENCES_PER_DAY} per day",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${WidgetCustomization.MAX_SENTENCES_PER_DAY} per day",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Quick Selection Buttons
+            Text(
+                text = "Quick Select:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(listOf(1, 3, 5, 10)) { count ->
+                    FilterChip(
+                        selected = currentSentencesPerDay == count,
+                        onClick = { onSentencesPerDaySelected(count) },
+                        label = {
+                            Text(
+                                text = "$count/day",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        leadingIcon = if (currentSentencesPerDay == count) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else null
+                    )
+                }
+            }
+            
+
         }
     }
 }

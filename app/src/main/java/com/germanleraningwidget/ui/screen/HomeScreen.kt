@@ -1,9 +1,18 @@
 package com.germanleraningwidget.ui.screen
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
@@ -12,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -20,7 +30,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.germanleraningwidget.R
 import com.germanleraningwidget.data.model.UserPreferences
@@ -28,6 +40,7 @@ import com.germanleraningwidget.data.model.WidgetType
 import com.germanleraningwidget.data.repository.SentenceRepository
 import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.Color
 
 /**
  * HomeScreen - Main dashboard for German Learning Widget app
@@ -409,11 +422,7 @@ private fun OptimizedLearningProfileCard(
                     isLoading = false
                 )
                 
-                OptimizedLearningStatRow(
-                    label = stringResource(R.string.frequency_label),
-                    value = userPreferences.deliveryFrequency.displayName,
-                    isLoading = false
-                )
+
                 
                 OptimizedLearningStatRow(
                     label = "Bookmarks",
@@ -560,8 +569,8 @@ private fun OptimizedWidgetPreviewCard(
     val cardHeight = 160.dp
     
     val cardContent: @Composable () -> Unit = {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
             when (widgetType) {
                 WidgetType.MAIN -> OptimizedMainWidgetPreview(isEnabled)
@@ -651,236 +660,368 @@ private fun OptimizedLearningStatRow(
     }
 }
 
-// Optimized widget preview components with enabled state
+// Optimized widget preview components with enabled state and updated colors
 @Composable
 private fun OptimizedMainWidgetPreview(isEnabled: Boolean) {
-    OptimizedWidgetPreviewHeader(
-        title = stringResource(R.string.main_learning_widget),
-        icon = Icons.Filled.School,
-        iconDescription = "Main learning widget icon",
-        badge = "A1",
-        isEnabled = isEnabled
-    )
+    // Use actual Main Widget background color (Cream)
+    val backgroundColor = Color(0xFFFFFCF2)
+    val textColor = if (isEnabled) Color(0xFF2B2675) else Color(0xFF2B2675).copy(alpha = 0.6f)
     
-    Spacer(modifier = Modifier.height(12.dp))
-    
-    OptimizedWidgetPreviewContent(
-        germanText = stringResource(R.string.demo_german_greeting),
-        englishText = stringResource(R.string.demo_english_greeting),
-        topicText = stringResource(R.string.demo_topic_greetings),
-        trailingContent = {
-            Icon(
-                imageVector = Icons.Filled.BookmarkBorder,
-                contentDescription = "Bookmark button",
-                modifier = Modifier.size(20.dp),
-                tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.2f),
+                RoundedCornerShape(16.dp)
             )
-        },
-        isEnabled = isEnabled
-    )
+            .padding(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Header similar to actual widget
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "🎓 Learn German",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Surface(
+                    color = textColor.copy(alpha = 0.1f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = "A1",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // German text
+            Text(
+                text = stringResource(R.string.demo_german_greeting),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Translation
+            Text(
+                text = stringResource(R.string.demo_english_greeting),
+                style = MaterialTheme.typography.bodySmall,
+                color = textColor.copy(alpha = 0.8f)
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Bottom section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = textColor.copy(alpha = 0.1f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = stringResource(R.string.demo_topic_greetings),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textColor
+                    )
+                }
+                
+                Icon(
+                    imageVector = Icons.Filled.BookmarkBorder,
+                    contentDescription = "Bookmark button",
+                    modifier = Modifier.size(16.dp),
+                    tint = textColor
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun OptimizedBookmarksWidgetPreview(isEnabled: Boolean) {
-    OptimizedWidgetPreviewHeader(
-        title = stringResource(R.string.bookmarks_widget),
-        icon = Icons.Filled.Bookmark,
-        iconDescription = "Bookmarks widget icon",
-        badge = "5",
-        isEnabled = isEnabled
-    )
+    // Use actual Bookmarks Widget background color (Orange)
+    val backgroundColor = Color(0xFFE88E3D)
+    val textColor = if (isEnabled) Color.White else Color.White.copy(alpha = 0.6f)
     
-    Spacer(modifier = Modifier.height(12.dp))
-    
-    OptimizedWidgetPreviewContent(
-        germanText = stringResource(R.string.demo_german_question),
-        englishText = stringResource(R.string.demo_english_question),
-        topicText = stringResource(R.string.demo_topic_daily_life),
-        trailingContent = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous sentence",
-                    modifier = Modifier.size(16.dp),
-                    tint = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next sentence",
-                    modifier = Modifier.size(16.dp),
-                    tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        isEnabled = isEnabled
-    )
-}
-
-@Composable
-private fun OptimizedHeroWidgetPreview(isEnabled: Boolean) {
-    OptimizedWidgetPreviewHeader(
-        title = stringResource(R.string.hero_bookmarks_widget),
-        icon = Icons.Filled.ViewCarousel,
-        iconDescription = "Hero bookmarks widget icon",
-        badge = null,
-        trailingContent = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.semantics {
-                    contentDescription = "Preview indicator dots"
-                }
-            ) {
-                repeat(3) { index ->
-                    Surface(
-                        modifier = Modifier.size(6.dp),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        color = if (index == 1) {
-                            if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        }
-                    ) {}
-                }
-            }
-        },
-        isEnabled = isEnabled
-    )
-    
-    Spacer(modifier = Modifier.height(12.dp))
-    
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.2f),
+                RoundedCornerShape(16.dp)
+            )
+            .padding(12.dp)
     ) {
-        Text(
-            text = stringResource(R.string.demo_german_weather),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Text(
-            text = stringResource(R.string.demo_english_weather),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        OptimizedTopicChip(
-            text = stringResource(R.string.demo_topic_weather),
-            isEnabled = isEnabled
-        )
-    }
-}
-
-@Composable
-private fun OptimizedWidgetPreviewHeader(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconDescription: String,
-    badge: String?,
-    trailingContent: @Composable (() -> Unit)? = null,
-    isEnabled: Boolean
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f, fill = false)
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = iconDescription,
-                modifier = Modifier.size(16.dp),
-                tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Header similar to actual widget
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "📚 Bookmarks",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Text(
+                    text = "1/5",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor.copy(alpha = 0.8f)
+                )
+            }
             
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
+            // German text
             Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                text = stringResource(R.string.demo_german_question),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = textColor
             )
             
-            badge?.let {
-                Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            // Translation
+            Text(
+                text = stringResource(R.string.demo_english_question),
+                style = MaterialTheme.typography.bodySmall,
+                color = textColor.copy(alpha = 0.8f)
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Bottom section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Surface(
-                    color = if (isEnabled) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    color = Color.White.copy(alpha = 0.15f),
                     shape = MaterialTheme.shapes.small
                 ) {
                     Text(
-                        text = it,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        text = stringResource(R.string.demo_topic_daily_life),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isEnabled) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold
+                        color = textColor
+                    )
+                }
+                
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Previous sentence",
+                        modifier = Modifier.size(14.dp),
+                        tint = textColor.copy(alpha = 0.7f)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Next sentence",
+                        modifier = Modifier.size(14.dp),
+                        tint = textColor
                     )
                 }
             }
         }
-        
-        trailingContent?.invoke()
     }
 }
 
 @Composable
-private fun OptimizedWidgetPreviewContent(
-    germanText: String,
-    englishText: String,
-    topicText: String,
-    trailingContent: @Composable () -> Unit,
-    isEnabled: Boolean
-) {
-    Text(
-        text = germanText,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = if (isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-    )
+private fun OptimizedHeroWidgetPreview(isEnabled: Boolean) {
+    // Use actual Hero Widget background color (Navy)
+    val backgroundColor = Color(0xFF2B2675)
+    val textColor = if (isEnabled) Color.White else Color.White.copy(alpha = 0.6f)
     
-    Spacer(modifier = Modifier.height(4.dp))
-    
-    Text(
-        text = englishText,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    
-    Spacer(modifier = Modifier.height(12.dp))
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(20.dp))
+            .background(backgroundColor)
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.2f),
+                RoundedCornerShape(20.dp)
+            )
+            .padding(12.dp)
     ) {
-        OptimizedTopicChip(text = topicText, isEnabled = isEnabled)
-        trailingContent()
-    }
-}
-
-@Composable
-private fun OptimizedTopicChip(text: String, isEnabled: Boolean) {
-    Surface(
-        color = if (isEnabled) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Header similar to actual widget
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "⭐ Hero Bookmarks",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Text(
+                    text = "1/5",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = textColor.copy(alpha = 0.8f)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            // Preview dots
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(3) { index ->
+                    Surface(
+                        modifier = Modifier.size(4.dp),
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = if (index == 1) {
+                            textColor
+                        } else {
+                            textColor.copy(alpha = 0.4f)
+                        }
+                    ) {}
+                    if (index < 2) Spacer(modifier = Modifier.width(3.dp))
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            // Main content area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(
+                        Color.White.copy(alpha = 0.1f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.demo_german_weather),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(3.dp))
+                    
+                    Text(
+                        text = stringResource(R.string.demo_english_weather),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textColor.copy(alpha = 0.8f),
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    Surface(
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = stringResource(R.string.demo_topic_weather),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            // Bottom navigation
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "←",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = textColor
+                            )
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "→",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = textColor
+                            )
+                        }
+                    }
+                }
+                
+                Surface(
+                    modifier = Modifier.size(22.dp),
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "×",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = textColor
+                        )
+                    }
+                }
+            }
+        }
     }
 } 

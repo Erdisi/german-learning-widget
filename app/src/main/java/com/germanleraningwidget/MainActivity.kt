@@ -347,7 +347,7 @@ fun GermanLearningApp() {
                         navController.navigate(NavigationConfig.ROUTE_BOOKMARKS)
                     },
                     onNavigateToLearningSetup = { 
-                        navController.navigate(NavigationConfig.ROUTE_SETTINGS)
+                        navController.navigate(NavigationConfig.ROUTE_LEARNING_PREFERENCES)
                     },
                     onNavigateToWidgetCustomization = {
                         navController.navigate(NavigationConfig.ROUTE_WIDGET_CUSTOMIZATION)
@@ -423,13 +423,12 @@ fun GermanLearningApp() {
  */
 private fun handleOnboardingComplete(
     context: android.content.Context,
-    navController: androidx.navigation.NavController,
-    frequency: com.germanleraningwidget.data.model.DeliveryFrequency
+    navController: androidx.navigation.NavController
 ) {
     try {
         // Schedule work when onboarding is completed
-        SentenceDeliveryWorker.scheduleWork(context, frequency)
-        Log.i("Onboarding", "Work scheduled for frequency: ${frequency.displayName}")
+        SentenceDeliveryWorker.scheduleWork(context)
+        Log.i("Onboarding", "Work scheduled for daily delivery")
         
         navController.navigate(NavigationConfig.ROUTE_HOME) {
             popUpTo(NavigationConfig.ROUTE_ONBOARDING) { inclusive = true }

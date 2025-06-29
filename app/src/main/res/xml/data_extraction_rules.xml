@@ -5,10 +5,14 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Include user preferences and customizations for backup -->
+        <include domain="sharedpref" path="user_preferences"/>
+        <include domain="sharedpref" path="widget_customizations"/>
+        <include domain="sharedpref" path="app_settings"/>
+        
+        <!-- Exclude cache and temporary data -->
+        <exclude domain="cache"/>
+        <exclude domain="no_backup"/>
     </cloud-backup>
     <!--
     <device-transfer>

@@ -12,8 +12,8 @@ android {
         applicationId = "com.germanleraningwidget"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.02"
+        versionCode = 4
+        versionName = "1.03"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -27,10 +27,16 @@ android {
                 "proguard-rules.pro"
             )
             
-            // Enable R8 full mode for better optimization
+            // Production optimizations
             isDebuggable = false
+            isPseudoLocalesEnabled = false
+            isCrunchPngs = true
             
-            // Optimize APK size
+            // Build configuration fields
+            buildConfigField("boolean", "ENABLE_LOGGING", "false")
+            buildConfigField("String", "BUILD_TYPE", "\"release\"")
+            
+            // Optimize APK size and security
             packaging {
                 resources {
                     excludes += listOf(
@@ -38,13 +44,31 @@ android {
                         "META-INF/LICENSE",
                         "META-INF/LICENSE.txt",
                         "META-INF/NOTICE",
-                        "META-INF/NOTICE.txt"
+                        "META-INF/NOTICE.txt",
+                        "META-INF/INDEX.LIST",
+                        "META-INF/MANIFEST.MF",
+                        "META-INF/*.SF",
+                        "META-INF/*.DSA",
+                        "META-INF/*.RSA",
+                        "**/*.kotlin_metadata",
+                        "kotlin/**",
+                        "DebugProbesKt.bin"
                     )
                 }
             }
         }
         debug {
             isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+            
+            // Debug configuration
+            buildConfigField("boolean", "ENABLE_LOGGING", "true")
+            buildConfigField("String", "BUILD_TYPE", "\"debug\"")
+            
+            // Debugging aids
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
     }
     
@@ -61,6 +85,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
     
     composeOptions {

@@ -3,11 +3,13 @@ package com.germanleraningwidget.data.model
 import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
 
+
+
 /**
  * User preferences for the German Learning Widget.
  * 
  * This data class holds all user-configurable settings including German level,
- * selected topics, delivery frequency, and UI preferences. Designed for optimal
+ * selected topics, and UI preferences. Designed for optimal
  * performance with immutable data structures and cached computations.
  * 
  * Thread Safety: Immutable data class is inherently thread-safe
@@ -19,7 +21,6 @@ data class UserPreferences(
     val selectedGermanLevels: Set<String> = setOf("A1"), // Multi-level selection
     val primaryGermanLevel: String = "A1", // Primary/main level for progression
     val selectedTopics: Set<String> = setOf("Daily Life"),
-    val deliveryFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
     
     // Learning Behavior Settings
     val enableSmartDelivery: Boolean = true,
@@ -223,7 +224,6 @@ data class UserPreferences(
         append("levels=${selectedGermanLevels.joinToString(",")}, ")
         append("primary=$primaryGermanLevel, ")
         append("topics=${selectedTopics.size}, ")
-        append("frequency=${deliveryFrequency.name}, ")
         append("onboarded=$isOnboardingCompleted")
         append(")")
     }
@@ -234,19 +234,13 @@ data class UserPreferences(
     val isAdvancedUser: Boolean get() = selectedGermanLevels.any { it in listOf("B2", "C1", "C2") }
     
     /**
-     * Get recommended sentence count per day based on level and frequency.
+     * Get recommended sentence count per day based on level.
      */
     val recommendedDailySentences: Int get() {
-        val baseCount = when {
+        return when {
             selectedGermanLevels.any { it in listOf("C1", "C2") } -> 8
             selectedGermanLevels.any { it in listOf("B1", "B2") } -> 6
             else -> 4
-        }
-        
-        return baseCount * when (deliveryFrequency) {
-            DeliveryFrequency.EVERY_30_MINUTES -> 2
-            DeliveryFrequency.EVERY_HOUR -> 1
-            else -> 1
         }
     }
     
@@ -264,14 +258,12 @@ data class UserPreferences(
             selectedGermanLevels: Set<String> = setOf("A1"),
             primaryGermanLevel: String = "A1",
             selectedTopics: Set<String> = setOf("Daily Life"),
-            deliveryFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
             isOnboardingCompleted: Boolean = false
         ): UserPreferences {
             return UserPreferences(
                 selectedGermanLevels = selectedGermanLevels,
                 primaryGermanLevel = primaryGermanLevel,
                 selectedTopics = selectedTopics,
-                deliveryFrequency = deliveryFrequency,
                 isOnboardingCompleted = isOnboardingCompleted
             ).withSafeDefaults()
         }
@@ -282,14 +274,12 @@ data class UserPreferences(
         fun migrateFromSingleLevel(
             germanLevel: String,
             selectedTopics: Set<String> = setOf("Daily Life"),
-            deliveryFrequency: DeliveryFrequency = DeliveryFrequency.DAILY,
             isOnboardingCompleted: Boolean = false
         ): UserPreferences {
             return createSafe(
                 selectedGermanLevels = setOf(germanLevel),
                 primaryGermanLevel = germanLevel,
                 selectedTopics = selectedTopics,
-                deliveryFrequency = deliveryFrequency,
                 isOnboardingCompleted = isOnboardingCompleted
             )
         }
@@ -304,107 +294,6 @@ data class UserPreferences(
         
         val isSuccess: Boolean get() = this is Success
         val errorMessage: String? get() = (this as? Error)?.errorText
-    }
-}
-
-/**
- * Enhanced enum representing different delivery frequencies.
- * Optimized with better performance characteristics and utility methods.
- */
-enum class DeliveryFrequency(
-    val displayName: String, 
-    val hours: Long,
-    val minutes: Long = 0
-) {
-    EVERY_30_MINUTES("Every 30 minutes", 0, 30),
-    EVERY_HOUR("Every hour", 1),
-    EVERY_2_HOURS("Every 2 hours", 2),
-    EVERY_4_HOURS("Every 4 hours", 4),
-    EVERY_6_HOURS("Every 6 hours", 6),
-    EVERY_12_HOURS("Every 12 hours", 12),
-    DAILY("Daily", 24);
-    
-    /**
-     * Gets the total duration in minutes.
-     * Cached for performance.
-     */
-    val totalMinutes: Long by lazy { hours * 60 + minutes }
-    
-    /**
-     * Gets the total duration in milliseconds.
-     * Cached for performance.
-     */
-    val totalMilliseconds: Long by lazy { totalMinutes * 60 * 1000 }
-    
-    /**
-     * Checks if this is a high-frequency delivery (less than 2 hours).
-     */
-    val isHighFrequency: Boolean get() = totalMinutes < 120
-    
-    /**
-     * Checks if this is a low-frequency delivery (12+ hours).
-     */
-    val isLowFrequency: Boolean get() = totalMinutes >= 720
-    
-    /**
-     * Get frequency category for analytics.
-     */
-    val category: FrequencyCategory get() = when {
-        isHighFrequency -> FrequencyCategory.HIGH
-        isLowFrequency -> FrequencyCategory.LOW
-        else -> FrequencyCategory.MEDIUM
-    }
-    
-    enum class FrequencyCategory {
-        HIGH, MEDIUM, LOW
-    }
-    
-    companion object {
-        // Cached map for faster display name lookups
-        private val displayNameMap = values().associateBy { it.displayName }
-        
-        // Cached lists for UI
-        private val highFrequencyOptions = values().filter { it.isHighFrequency }
-        private val mediumFrequencyOptions = values().filter { !it.isHighFrequency && !it.isLowFrequency }
-        private val lowFrequencyOptions = values().filter { it.isLowFrequency }
-        
-        /**
-         * Safely converts display name to DeliveryFrequency with caching.
-         */
-        fun fromDisplayName(displayName: String?): DeliveryFrequency {
-            if (displayName.isNullOrBlank()) return DAILY
-            
-            return displayNameMap[displayName.trim()] ?: run {
-                Log.w("DeliveryFrequency", "Invalid display name: '$displayName', defaulting to DAILY")
-                DAILY
-            }
-        }
-        
-        /**
-         * Safely converts string to DeliveryFrequency.
-         */
-        fun fromString(value: String?): DeliveryFrequency {
-            if (value.isNullOrBlank()) return DAILY
-            
-            return try {
-                valueOf(value.uppercase().trim())
-            } catch (e: IllegalArgumentException) {
-                Log.w("DeliveryFrequency", "Invalid frequency string: '$value', defaulting to DAILY")
-                DAILY
-            }
-        }
-        
-        /**
-         * Get frequency options categorized by intensity.
-         */
-        fun getHighFrequencyOptions(): List<DeliveryFrequency> = highFrequencyOptions
-        fun getMediumFrequencyOptions(): List<DeliveryFrequency> = mediumFrequencyOptions
-        fun getLowFrequencyOptions(): List<DeliveryFrequency> = lowFrequencyOptions
-        
-        /**
-         * Gets all frequencies as a list for UI display.
-         */
-        fun getAllFrequencies(): List<DeliveryFrequency> = values().toList()
     }
 }
 

@@ -520,29 +520,17 @@ private fun OptimizedBookmarksTopBar(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+                containerColor = MaterialTheme.colorScheme.surface
             )
         )
     } else {
-        LargeTopAppBar(
+        TopAppBar(
             title = { 
-                Column {
-                    Text(
-                        text = "Saved Sentences",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = if (hasFilters) {
-                            "$filteredCount of $totalCount sentences"
-                        } else {
-                            "$totalCount ${if (totalCount == 1) "sentence" else "sentences"}"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = "Saved Sentences",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
             },
             navigationIcon = {
                 IconButton(
@@ -553,8 +541,7 @@ private fun OptimizedBookmarksTopBar(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
+                        contentDescription = "Back"
                     )
                 }
             },
@@ -631,9 +618,8 @@ private fun OptimizedBookmarksTopBar(
                     }
                 }
             },
-            colors = TopAppBarDefaults.largeTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface
             )
         )
     }

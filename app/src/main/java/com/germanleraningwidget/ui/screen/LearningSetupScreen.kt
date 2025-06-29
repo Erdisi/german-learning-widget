@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import com.germanleraningwidget.data.model.*
 import com.germanleraningwidget.data.repository.UserPreferencesRepository
-import com.germanleraningwidget.worker.SentenceDeliveryWorker
+
 import com.germanleraningwidget.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,7 +52,7 @@ fun LearningSetupScreen(
     var selectedLevels by remember { mutableStateOf(userPreferences.selectedGermanLevels) }
     var primaryLevel by remember { mutableStateOf(userPreferences.primaryGermanLevel) }
     var selectedTopics by remember { mutableStateOf(userPreferences.selectedTopics) }
-    var selectedFrequency by remember { mutableStateOf(userPreferences.deliveryFrequency) }
+
     
     // UI state
     var isLoading by remember { mutableStateOf(false) }
@@ -76,8 +76,7 @@ fun LearningSetupScreen(
     // Check if preferences have changed
     val hasChanges = selectedLevels != userPreferences.selectedGermanLevels ||
                     primaryLevel != userPreferences.primaryGermanLevel ||
-                    selectedTopics != userPreferences.selectedTopics ||
-                    selectedFrequency != userPreferences.deliveryFrequency
+                    selectedTopics != userPreferences.selectedTopics
     
     Scaffold(
         topBar = {
@@ -247,19 +246,6 @@ fun LearningSetupScreen(
                         )
                     }
                 }
-                
-                // Delivery Frequency Section
-                item {
-                    SettingsSection(
-                        title = "Delivery Frequency",
-                        subtitle = "How often to receive new sentences"
-                    ) {
-                        FrequencySelector(
-                            selectedFrequency = selectedFrequency,
-                            onFrequencySelected = { selectedFrequency = it }
-                        )
-                    }
-                }
             }
             
             // Success Animation
@@ -327,7 +313,6 @@ fun LearningSetupScreen(
                             selectedGermanLevels = selectedLevels.filter { it.isNotBlank() }.toSet(),
                             primaryGermanLevel = primaryLevel,
                             selectedTopics = selectedTopics.filter { it.isNotBlank() }.toSet(),
-                            deliveryFrequency = selectedFrequency,
                             isOnboardingCompleted = true
                         )
                         
@@ -340,12 +325,6 @@ fun LearningSetupScreen(
                                 }
                                 
                                 preferencesRepository.updateUserPreferences(updatedPreferences)
-                                
-                                try {
-                                    SentenceDeliveryWorker.scheduleWork(context, selectedFrequency)
-                                } catch (workError: Exception) {
-                                    // Don't fail the entire save operation if work scheduling fails
-                                }
                                 
                                 isLoading = false
                                 showSuccess = true
@@ -583,65 +562,7 @@ private fun TopicChip(
     )
 }
 
-@Composable
-private fun FrequencySelector(
-    selectedFrequency: DeliveryFrequency,
-    onFrequencySelected: (DeliveryFrequency) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap)) {
-        DeliveryFrequency.values().forEach { frequency ->
-            FrequencyCard(
-                frequency = frequency,
-                isSelected = selectedFrequency == frequency,
-                onClick = { onFrequencySelected(frequency) }
-            )
-        }
-    }
-}
 
-@Composable
-private fun FrequencyCard(
-    frequency: DeliveryFrequency,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    UnifiedCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = UnifiedDesign.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(UnifiedDesign.ContentPadding),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(
-                selected = isSelected,
-                onClick = onClick
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = frequency.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = getFrequencyDescription(frequency),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
 
 private fun getTopicEmoji(topic: String): String {
     return when (topic) {
@@ -680,14 +601,4 @@ private fun getLevelDescription(level: String): String {
     }
 }
 
-private fun getFrequencyDescription(frequency: DeliveryFrequency): String {
-    return when (frequency) {
-        DeliveryFrequency.EVERY_30_MINUTES -> "Most frequent learning sessions"
-        DeliveryFrequency.EVERY_HOUR -> "Perfect for intensive learning"
-        DeliveryFrequency.EVERY_2_HOURS -> "Regular learning rhythm"
-        DeliveryFrequency.EVERY_4_HOURS -> "Good for busy schedules"
-        DeliveryFrequency.EVERY_6_HOURS -> "Balanced learning pace"
-        DeliveryFrequency.EVERY_12_HOURS -> "Twice daily practice"
-        DeliveryFrequency.DAILY -> "Recommended for steady progress"
-    }
-} 
+ 

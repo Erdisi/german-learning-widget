@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.util.TypedValue
 import android.widget.RemoteViews
+import androidx.compose.ui.graphics.toArgb
 import com.germanleraningwidget.data.model.WidgetCustomization
 import com.germanleraningwidget.data.model.WidgetTextContrast
 import com.germanleraningwidget.data.model.WidgetType
@@ -74,9 +75,10 @@ object WidgetCustomizationHelper {
             views.setTextViewTextSize(germanTextViewId, TypedValue.COMPLEX_UNIT_SP, germanTextSize)
             views.setTextViewTextSize(translationTextViewId, TypedValue.COMPLEX_UNIT_SP, translationTextSize)
             
-            // Apply text contrast (colors)
-            val textColor = getTextColor(customization.textContrast)
-            val translationColor = getTranslationTextColor(customization.textContrast)
+            // Apply text colors based on background color pairing
+            val baseTextColor = customization.backgroundColor.textColor.toArgb()
+            val textColor = getTextColor(baseTextColor, customization.textContrast)
+            val translationColor = getTranslationTextColor(baseTextColor, customization.textContrast)
             
             views.setTextColor(germanTextViewId, textColor)
             views.setTextColor(translationTextViewId, translationColor)
@@ -87,25 +89,33 @@ object WidgetCustomizationHelper {
     }
     
     /**
-     * Get text color based on contrast setting.
+     * Get text color based on base color and contrast setting.
      */
-    private fun getTextColor(contrast: WidgetTextContrast): Int {
+    private fun getTextColor(baseTextColor: Int, contrast: WidgetTextContrast): Int {
         return when (contrast) {
-            WidgetTextContrast.NORMAL -> Color.WHITE
-            WidgetTextContrast.HIGH -> Color.WHITE // Could add shadow in future
-            WidgetTextContrast.MAXIMUM -> Color.WHITE // Could add outline in future
+            WidgetTextContrast.NORMAL -> baseTextColor
+            WidgetTextContrast.HIGH -> baseTextColor // Could add shadow in future
+            WidgetTextContrast.MAXIMUM -> baseTextColor // Could add outline in future
         }
     }
     
     /**
-     * Get translation text color (slightly transparent).
+     * Get translation text color (slightly transparent version of base color).
      */
-    private fun getTranslationTextColor(contrast: WidgetTextContrast): Int {
+    private fun getTranslationTextColor(baseTextColor: Int, contrast: WidgetTextContrast): Int {
         return when (contrast) {
-            WidgetTextContrast.NORMAL -> 0xE6FFFFFF.toInt() // 90% opacity
-            WidgetTextContrast.HIGH -> 0xF0FFFFFF.toInt() // 94% opacity
-            WidgetTextContrast.MAXIMUM -> Color.WHITE // 100% opacity
+            WidgetTextContrast.NORMAL -> applyAlpha(baseTextColor, 0.9f) // 90% opacity
+            WidgetTextContrast.HIGH -> applyAlpha(baseTextColor, 0.94f) // 94% opacity
+            WidgetTextContrast.MAXIMUM -> baseTextColor // 100% opacity
         }
+    }
+    
+    /**
+     * Apply alpha to a color.
+     */
+    private fun applyAlpha(color: Int, alpha: Float): Int {
+        val alphaValue = (255 * alpha).toInt()
+        return (color and 0x00FFFFFF) or (alphaValue shl 24)
     }
     
     /**

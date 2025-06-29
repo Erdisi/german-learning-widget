@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.work.Configuration
 import androidx.work.WorkManager
+import com.germanleraningwidget.BuildConfig
 import java.util.concurrent.Executors
 
 /**
@@ -70,25 +71,33 @@ class GermanLearningApplication : Application(), Configuration.Provider {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         
+        // Handle memory trim events - some constants are deprecated since API 34
         when (level) {
-            @Suppress("DEPRECATION")
-            TRIM_MEMORY_RUNNING_MODERATE -> {
-                Log.w(TAG, "Moderate memory pressure (level: $level) - performing light cleanup")
+            // Still valid constants
+            android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
+                Log.d(TAG, "UI hidden (level: $level) - performing cleanup")
                 performMemoryCleanup(aggressive = false)
             }
-            @Suppress("DEPRECATION")
-            TRIM_MEMORY_RUNNING_LOW,
-            @Suppress("DEPRECATION") 
-            TRIM_MEMORY_RUNNING_CRITICAL -> {
-                Log.w(TAG, "High memory pressure (level: $level) - performing aggressive cleanup")
-                performMemoryCleanup(aggressive = true)
-            }
-            @Suppress("DEPRECATION")
-            TRIM_MEMORY_UI_HIDDEN,
-            @Suppress("DEPRECATION")
-            TRIM_MEMORY_BACKGROUND -> {
+            android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
                 Log.d(TAG, "App backgrounded (level: $level) - performing background cleanup")
                 performMemoryCleanup(aggressive = false)
+            }
+            // Handle deprecated constants gracefully for backwards compatibility
+            else -> {
+                when {
+                    level <= 15 -> { // RUNNING levels (5, 10, 15)
+                        Log.w(TAG, "Memory pressure (level: $level) - performing cleanup")
+                        performMemoryCleanup(aggressive = level >= 10)
+                    }
+                    level >= 40 -> { // BACKGROUND levels (40, 60, 80)
+                        Log.w(TAG, "Background memory pressure (level: $level) - performing aggressive cleanup")
+                        performMemoryCleanup(aggressive = level >= 60)
+                    }
+                    else -> {
+                        Log.d(TAG, "Memory trim event (level: $level) - performing light cleanup")
+                        performMemoryCleanup(aggressive = false)
+                    }
+                }
             }
         }
     }
@@ -126,7 +135,7 @@ class GermanLearningApplication : Application(), Configuration.Provider {
      */
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
-            .setMinimumLoggingLevel(Log.INFO)
+            .setMinimumLoggingLevel(if (BuildConfig.DEBUG) Log.DEBUG else Log.INFO)
             .setExecutor(
                 Executors.newFixedThreadPool(
                     WORK_MANAGER_THREAD_POOL_SIZE,

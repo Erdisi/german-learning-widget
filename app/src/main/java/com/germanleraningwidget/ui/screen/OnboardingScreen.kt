@@ -22,10 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.germanleraningwidget.ui.components.GermanLevelStep
 import com.germanleraningwidget.ui.components.TopicsStep
-import com.germanleraningwidget.ui.components.FrequencyStep
 import com.germanleraningwidget.ui.components.WelcomeStep
 import com.germanleraningwidget.ui.viewmodel.OnboardingViewModel
-import com.germanleraningwidget.worker.SentenceDeliveryWorker
+
 import com.germanleraningwidget.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,13 +37,11 @@ fun OnboardingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     var currentStep by remember { mutableIntStateOf(0) }
-    val totalSteps = 4 // Updated to 4 steps (removed native language step)
+    val totalSteps = 3 // Updated to 3 steps (removed native language and frequency steps)
     
     // Handle onboarding completion
     LaunchedEffect(uiState.isOnboardingCompleted) {
         if (uiState.isOnboardingCompleted) {
-            // Schedule work when onboarding is completed
-            SentenceDeliveryWorker.scheduleWork(context, uiState.selectedFrequency)
             onOnboardingComplete()
         }
     }
@@ -101,10 +98,6 @@ fun OnboardingScreen(
                             }
                             viewModel.updateSelectedTopics(newTopics)
                         }
-                    )
-                    3 -> FrequencyStep(
-                        selectedFrequency = uiState.selectedFrequency,
-                        onFrequencySelected = { viewModel.updateDeliveryFrequency(it) }
                     )
                 }
             }

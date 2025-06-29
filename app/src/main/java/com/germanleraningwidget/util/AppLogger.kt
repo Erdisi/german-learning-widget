@@ -2,6 +2,7 @@ package com.germanleraningwidget.util
 
 import android.content.Context
 import android.util.Log
+import com.germanleraningwidget.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -124,14 +125,21 @@ object AppLogger {
      * Core logging functions.
      */
     fun v(category: Category, tag: String, message: String) {
-        log(Level.VERBOSE, category, tag, message)
+        // Only log verbose messages in debug builds
+        if (BuildConfig.DEBUG) {
+            log(Level.VERBOSE, category, tag, message)
+        }
     }
     
     fun d(category: Category, tag: String, message: String) {
-        log(Level.DEBUG, category, tag, message)
+        // Only log debug messages in debug builds
+        if (BuildConfig.DEBUG) {
+            log(Level.DEBUG, category, tag, message)
+        }
     }
     
     fun i(category: Category, tag: String, message: String) {
+        // Info logs are kept in production for essential information
         log(Level.INFO, category, tag, message)
     }
     

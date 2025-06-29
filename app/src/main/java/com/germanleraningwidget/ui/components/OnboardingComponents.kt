@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.germanleraningwidget.data.model.DeliveryFrequency
+
 import com.germanleraningwidget.ui.viewmodel.AvailableLanguages
 import com.germanleraningwidget.ui.viewmodel.AvailableTopics
 import androidx.compose.foundation.clickable
@@ -74,7 +74,6 @@ fun WelcomeStep() {
                 val features = listOf(
                     "📱 Personalized German sentences on your home screen",
                     "🎯 Content tailored to your level and interests",
-                    "⏰ Customizable delivery frequency",
                     "📚 Progress tracking and learning analytics"
                 )
                 
@@ -402,82 +401,4 @@ fun TopicsStep(
     }
 }
 
-@Composable
-fun FrequencyStep(
-    selectedFrequency: DeliveryFrequency,
-    onFrequencySelected: (DeliveryFrequency) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = "Delivery Frequency",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "How often would you like to receive new German sentences?",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        UnifiedCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(UnifiedDesign.ContentPadding)
-            ) {
-                DeliveryFrequency.values().forEach { frequency ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = selectedFrequency == frequency,
-                                onClick = { onFrequencySelected(frequency) }
-                            )
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selectedFrequency == frequency,
-                            onClick = { onFrequencySelected(frequency) }
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = frequency.displayName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = getFrequencyDescription(frequency),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun getFrequencyDescription(frequency: DeliveryFrequency): String {
-    return when (frequency) {
-        DeliveryFrequency.EVERY_30_MINUTES -> "Most frequent learning sessions"
-        DeliveryFrequency.EVERY_HOUR -> "Perfect for intensive learning"
-        DeliveryFrequency.EVERY_2_HOURS -> "Regular learning rhythm"
-        DeliveryFrequency.EVERY_4_HOURS -> "Good for busy schedules"
-        DeliveryFrequency.EVERY_6_HOURS -> "Balanced learning pace"
-        DeliveryFrequency.EVERY_12_HOURS -> "Twice daily practice"
-        DeliveryFrequency.DAILY -> "Recommended for steady progress"
-    }
-} 
+ 

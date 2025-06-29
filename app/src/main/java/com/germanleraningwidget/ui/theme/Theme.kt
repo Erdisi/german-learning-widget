@@ -64,10 +64,18 @@ fun GermanLearningWidgetTheme(
             
             // Set transparent status/navigation bars for modern edge-to-edge experience
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                @Suppress("DEPRECATION")
-                window.statusBarColor = Color.Transparent.toArgb()
-                @Suppress("DEPRECATION")
-                window.navigationBarColor = Color.Transparent.toArgb()
+                // Use WindowInsetsController for modern API levels, fallback for older versions
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // Modern approach using WindowInsetsController (API 30+)
+                    window.statusBarColor = Color.Transparent.toArgb()
+                    window.navigationBarColor = Color.Transparent.toArgb()
+                } else {
+                    // Legacy approach for API 21-29
+                    @Suppress("DEPRECATION")
+                    window.statusBarColor = Color.Transparent.toArgb()
+                    @Suppress("DEPRECATION")
+                    window.navigationBarColor = Color.Transparent.toArgb()
+                }
             }
         }
     }

@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
-import com.germanleraningwidget.data.model.DeliveryFrequency
 import com.germanleraningwidget.data.model.GermanLevel
 import com.germanleraningwidget.data.model.UserPreferences
 import kotlinx.coroutines.CoroutineDispatcher
@@ -66,7 +65,6 @@ class UserPreferencesRepository(
         
         // Other existing keys
         val SELECTED_TOPICS = stringSetPreferencesKey("selected_topics")
-        val DELIVERY_FREQUENCY = stringPreferencesKey("delivery_frequency")
         val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
     }
     
@@ -126,7 +124,6 @@ class UserPreferencesRepository(
             selectedGermanLevels = finalSelectedLevels.ifEmpty { setOf("A1") },
             primaryGermanLevel = finalPrimaryLevel.takeIf { it.isNotBlank() && it in finalSelectedLevels } ?: "A1",
             selectedTopics = preferences[PreferencesKeys.SELECTED_TOPICS]?.filter { it.isNotBlank() }?.toSet() ?: setOf("Daily Life"),
-            deliveryFrequency = DeliveryFrequency.fromDisplayName(preferences[PreferencesKeys.DELIVERY_FREQUENCY]),
             isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
         )
     }
@@ -256,14 +253,7 @@ class UserPreferencesRepository(
         }
     }
     
-    /**
-     * Update delivery frequency with validation.
-     */
-    suspend fun updateDeliveryFrequency(frequency: DeliveryFrequency): Result<Unit> {
-        return safeWrite("update delivery frequency") { preferences ->
-            preferences[PreferencesKeys.DELIVERY_FREQUENCY] = frequency.name
-        }
-    }
+
     
     /**
      * Set onboarding completion status.
@@ -294,7 +284,6 @@ class UserPreferencesRepository(
                     prefs[PreferencesKeys.SELECTED_GERMAN_LEVELS] = preferences.selectedGermanLevels
                     prefs[PreferencesKeys.PRIMARY_GERMAN_LEVEL] = preferences.primaryGermanLevel
                     prefs[PreferencesKeys.SELECTED_TOPICS] = preferences.selectedTopics
-                    prefs[PreferencesKeys.DELIVERY_FREQUENCY] = preferences.deliveryFrequency.name
                     prefs[PreferencesKeys.IS_ONBOARDING_COMPLETED] = preferences.isOnboardingCompleted
                 }
                 

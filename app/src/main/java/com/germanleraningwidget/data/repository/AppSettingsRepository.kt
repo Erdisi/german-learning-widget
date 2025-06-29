@@ -3,6 +3,7 @@ package com.germanleraningwidget.data.repository
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
@@ -227,9 +228,10 @@ class AppSettingsRepository(
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             AppVersionInfo(
                 versionName = packageInfo.versionName ?: "Unknown",
-                versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     packageInfo.longVersionCode.toInt()
                 } else {
+                    // Legacy API for versions below Android 9 (API 28)
                     @Suppress("DEPRECATION")
                     packageInfo.versionCode
                 },

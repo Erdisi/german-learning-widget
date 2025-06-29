@@ -113,7 +113,8 @@ fun WidgetCustomizationScreen(
                 title = { 
                     Text(
                         "Widget Customization",
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     ) 
                 },
                 navigationIcon = {
@@ -166,7 +167,10 @@ fun WidgetCustomizationScreen(
                             contentDescription = "Reset All to Defaults"
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         }
     ) { innerPadding ->
@@ -270,33 +274,6 @@ fun WidgetCustomizationScreen(
                         onNavigateToWidgetDetails(widgetType)
                     }
                 )
-            }
-            
-            // Summary Section
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(UnifiedDesign.ContentPadding)
-                    ) {
-                        Text(
-                            text = "Current Settings Summary",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = allCustomizations.allCustomizationsSummary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         }
     }
