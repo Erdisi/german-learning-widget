@@ -83,6 +83,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                 if (sentence != null) {
                     // Store current sentence
                     currentSentences[appWidgetId] = sentence
+                    android.util.Log.d("GermanLearningWidget", "Stored sentence ${sentence.id} for widget $appWidgetId")
                     
                     // Set text content
                     views.setTextViewText(R.id.widget_german_text, sentence.germanText)
@@ -90,11 +91,12 @@ class GermanLearningWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_topic, sentence.topic)
                     views.setTextViewText(R.id.widget_level_indicator, sentence.level) // Show actual sentence level
                     
-                    // Apply text customizations
-                    WidgetCustomizationHelper.applyTextCustomizations(
+                    // Apply automatic text customizations based on actual content
+                    WidgetCustomizationHelper.applyAutoTextCustomizations(
                         views, customization,
                         R.id.widget_german_text, R.id.widget_translation,
-                        18f, 14f // Base sizes for main widget
+                        sentence.germanText, sentence.translation,
+                        isHeroWidget = false
                     )
                     
                     // Set save button state
@@ -107,18 +109,41 @@ class GermanLearningWidget : AppWidgetProvider() {
                     // Set up save button click
                     setupSaveButton(context, views, appWidgetId, sentence.id)
                 } else {
-                    // Show default content with customizations
-                    views.setTextViewText(R.id.widget_german_text, "Guten Tag!")
-                    views.setTextViewText(R.id.widget_translation, "Good day!")
-                    views.setTextViewText(R.id.widget_topic, "Greetings")
-                    views.setTextViewText(R.id.widget_level_indicator, preferences.primaryGermanLevel) // Show primary level
+                    // Create a default sentence for the save button to work
+                    val defaultSentence = GermanSentence(
+                        id = 999L, // Special ID for default sentence
+                        germanText = "Guten Tag!",
+                        translation = "Good day!",
+                        level = preferences.primaryGermanLevel,
+                        topic = "Greetings"
+                    )
                     
-                    // Apply text customizations to default content
-                    WidgetCustomizationHelper.applyTextCustomizations(
+                    // Store default sentence
+                    currentSentences[appWidgetId] = defaultSentence
+                    
+                    // Show default content with customizations
+                    views.setTextViewText(R.id.widget_german_text, defaultSentence.germanText)
+                    views.setTextViewText(R.id.widget_translation, defaultSentence.translation)
+                    views.setTextViewText(R.id.widget_topic, defaultSentence.topic)
+                    views.setTextViewText(R.id.widget_level_indicator, defaultSentence.level)
+                    
+                    // Apply automatic text customizations to default content
+                    WidgetCustomizationHelper.applyAutoTextCustomizations(
                         views, customization,
                         R.id.widget_german_text, R.id.widget_translation,
-                        18f, 14f
+                        defaultSentence.germanText, defaultSentence.translation,
+                        isHeroWidget = false
                     )
+                    
+                    // Set save button state for default sentence
+                    val isSaved = sentenceRepository.isSentenceSaved(defaultSentence.id)
+                    views.setImageViewResource(
+                        R.id.widget_save_button,
+                        if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
+                    )
+                    
+                    // Set up save button click for default sentence
+                    setupSaveButton(context, views, appWidgetId, defaultSentence.id)
                 }
                 
                 // Set up main click intent
@@ -158,6 +183,7 @@ class GermanLearningWidget : AppWidgetProvider() {
      * Set up save button click intent.
      */
     private fun setupSaveButton(context: Context, views: RemoteViews, appWidgetId: Int, sentenceId: Long) {
+        android.util.Log.d("GermanLearningWidget", "Setting up save button for widget $appWidgetId, sentence $sentenceId")
         val saveIntent = Intent(context, GermanLearningWidget::class.java).apply {
             action = ACTION_SAVE_SENTENCE
             putExtra(EXTRA_WIDGET_ID, appWidgetId)
@@ -165,7 +191,7 @@ class GermanLearningWidget : AppWidgetProvider() {
         }
         val savePendingIntent = PendingIntent.getBroadcast(
             context,
-            appWidgetId,
+            appWidgetId + 2000, // Different request code from main click
             saveIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -201,13 +227,19 @@ class GermanLearningWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         
+        android.util.Log.d("GermanLearningWidget", "onReceive called with action: ${intent.action}")
+        
         when (intent.action) {
             ACTION_SAVE_SENTENCE -> {
                 val widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, -1)
                 val sentenceId = intent.getLongExtra(EXTRA_SENTENCE_ID, -1L)
                 
+                android.util.Log.d("GermanLearningWidget", "Save sentence action: widgetId=$widgetId, sentenceId=$sentenceId")
+                
                 if (widgetId != -1 && sentenceId != -1L) {
                     handleSaveSentence(context, widgetId, sentenceId)
+                } else {
+                    android.util.Log.e("GermanLearningWidget", "Invalid save sentence parameters: widgetId=$widgetId, sentenceId=$sentenceId")
                 }
             }
             AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
@@ -247,9 +279,23 @@ class GermanLearningWidget : AppWidgetProvider() {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val topic = intent.getStringExtra("topic")
                 val sentenceId = intent.getLongExtra("sentence_id", -1L)
+                val level = intent.getStringExtra("level") ?: "A1"
                 
                 for (appWidgetId in appWidgetIds) {
                     val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
+                    
+                    // Create sentence object for tracking
+                    val sentence = GermanSentence(
+                        id = sentenceId,
+                        germanText = germanText,
+                        translation = translation,
+                        level = level,
+                        topic = topic ?: "Unknown"
+                    )
+                    
+                    // Store current sentence for bookmark functionality
+                    currentSentences[appWidgetId] = sentence
+                    android.util.Log.d("GermanLearningWidget", "Stored sentence from worker ${sentence.id} for widget $appWidgetId")
                     
                     // Apply customizations
                     val customization = WidgetCustomizationHelper.applyCustomizations(
@@ -260,17 +306,14 @@ class GermanLearningWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_german_text, germanText)
                     views.setTextViewText(R.id.widget_translation, translation)
                     views.setTextViewText(R.id.widget_topic, topic ?: "")
+                    views.setTextViewText(R.id.widget_level_indicator, level)
                     
-                    // Get user level for display
-                    val preferencesRepository = UserPreferencesRepository(context)
-                    val preferences = preferencesRepository.userPreferences.first()
-                    views.setTextViewText(R.id.widget_level_indicator, preferences.primaryGermanLevel)
-                    
-                    // Apply text customizations
-                    WidgetCustomizationHelper.applyTextCustomizations(
+                    // Apply automatic text customizations based on actual content
+                    WidgetCustomizationHelper.applyAutoTextCustomizations(
                         views, customization,
                         R.id.widget_german_text, R.id.widget_translation,
-                        18f, 14f
+                        germanText, translation,
+                        isHeroWidget = false
                     )
                     
                     // Set up save button if we have sentence ID
@@ -301,20 +344,29 @@ class GermanLearningWidget : AppWidgetProvider() {
      * Handle save/unsave sentence action.
      */
     private fun handleSaveSentence(context: Context, widgetId: Int, sentenceId: Long) {
+        android.util.Log.d("GermanLearningWidget", "handleSaveSentence: widgetId=$widgetId, sentenceId=$sentenceId")
+        android.util.Log.d("GermanLearningWidget", "Current sentences map size: ${currentSentences.size}")
+        android.util.Log.d("GermanLearningWidget", "Current sentences: ${currentSentences.keys}")
+        
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
                 val currentSentence = currentSentences[widgetId]
                 
+                android.util.Log.d("GermanLearningWidget", "Retrieved sentence for widget $widgetId: $currentSentence")
+                
                 if (currentSentence != null && currentSentence.id == sentenceId) {
+                    android.util.Log.d("GermanLearningWidget", "Toggling save state for sentence: ${currentSentence.germanText}")
                     val isNowSaved = sentenceRepository.toggleSaveSentence(currentSentence)
                     
-                    // Update just the save button
+                    android.util.Log.d("GermanLearningWidget", "Sentence is now saved: $isNowSaved")
+                    
+                    // Rebuild the entire widget with proper customizations
                     val appWidgetManager = AppWidgetManager.getInstance(context)
                     val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
                     
                     // Apply current customizations
-                    WidgetCustomizationHelper.applyCustomizations(
+                    val customization = WidgetCustomizationHelper.applyCustomizations(
                         context, views, WidgetType.MAIN, R.id.widget_container
                     )
                     
@@ -322,18 +374,50 @@ class GermanLearningWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_german_text, currentSentence.germanText)
                     views.setTextViewText(R.id.widget_translation, currentSentence.translation)
                     views.setTextViewText(R.id.widget_topic, currentSentence.topic)
+                    views.setTextViewText(R.id.widget_level_indicator, currentSentence.level)
                     
-                    // Update save button
+                    // Apply automatic text customizations
+                    WidgetCustomizationHelper.applyAutoTextCustomizations(
+                        views, customization,
+                        R.id.widget_german_text, R.id.widget_translation,
+                        currentSentence.germanText, currentSentence.translation,
+                        isHeroWidget = false
+                    )
+                    
+                    // Update save button icon
                     views.setImageViewResource(
                         R.id.widget_save_button,
                         if (isNowSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
                     )
                     
+                    // Set up click handlers
                     setupMainClick(context, views, widgetId)
                     setupSaveButton(context, views, widgetId, sentenceId)
                     
+                    // Update widget on main thread
                     CoroutineScope(Dispatchers.Main).launch {
                         appWidgetManager.updateAppWidget(widgetId, views)
+                        android.util.Log.d("GermanLearningWidget", "Widget $widgetId updated with new bookmark state")
+                    }
+                } else {
+                    android.util.Log.e("GermanLearningWidget", "Could not find sentence for widget $widgetId or sentence ID mismatch. Expected: $sentenceId, Current sentence: $currentSentence")
+                    
+                    // Fallback: try to find the sentence in the repository and update
+                    if (sentenceId == 999L) {
+                        // Handle default sentence
+                        val defaultSentence = GermanSentence(
+                            id = 999L,
+                            germanText = "Guten Tag!",
+                            translation = "Good day!",
+                            level = "A1",
+                            topic = "Greetings"
+                        )
+                        currentSentences[widgetId] = defaultSentence
+                        sentenceRepository.toggleSaveSentence(defaultSentence)
+                        
+                        // Update widget with default sentence
+                        val appWidgetManager = AppWidgetManager.getInstance(context)
+                        updateWidget(context, appWidgetManager, widgetId)
                     }
                 }
             } catch (e: Exception) {
@@ -345,6 +429,9 @@ class GermanLearningWidget : AppWidgetProvider() {
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         super.onDeleted(context, appWidgetIds)
         // Clean up tracked sentences when widgets are deleted
-        appWidgetIds.forEach { currentSentences.remove(it) }
+        appWidgetIds.forEach { 
+            currentSentences.remove(it)
+            android.util.Log.d("GermanLearningWidget", "Cleaned up sentence for deleted widget $it")
+        }
     }
 } 

@@ -138,11 +138,12 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_hero_translation, currentSentence.translation)
         views.setTextViewText(R.id.widget_hero_topic, currentSentence.topic)
         
-        // Apply text customizations with larger base sizes for hero widget
-        WidgetCustomizationHelper.applyTextCustomizations(
+        // Apply automatic text customizations for hero widget
+        WidgetCustomizationHelper.applyAutoTextCustomizations(
             views, customization,
             R.id.widget_hero_german_text, R.id.widget_hero_translation,
-            20f, 16f // Larger base sizes for hero widget
+            currentSentence.germanText, currentSentence.translation,
+            isHeroWidget = true
         )
         
         // Update preview texts and dots
@@ -215,11 +216,12 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_hero_translation, "Save sentences to see them here")
         views.setTextViewText(R.id.widget_hero_topic, "")
         
-        // Apply text customizations to empty state
-        WidgetCustomizationHelper.applyTextCustomizations(
+        // Apply automatic text customizations to empty state
+        WidgetCustomizationHelper.applyAutoTextCustomizations(
             views, customization,
             R.id.widget_hero_german_text, R.id.widget_hero_translation,
-            20f, 16f // Hero widget base sizes
+            "No bookmarks yet", "Save sentences to see them here",
+            isHeroWidget = true
         )
         
         // Clear preview texts and dots

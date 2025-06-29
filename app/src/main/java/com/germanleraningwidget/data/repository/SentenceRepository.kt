@@ -134,14 +134,50 @@ class SentenceRepository private constructor(
             GermanSentence(27, "Der gesellschaftliche Wandel beeinflusst unseren Alltag erheblich.", "Social change significantly influences our daily lives.", "C2", "Daily Life"),
             GermanSentence(28, "Lebenslanges Lernen ist in der heutigen Wissensgesellschaft unerlässlich.", "Lifelong learning is essential in today's knowledge society.", "C2", "Education"),
             
-            // Additional sentences for variety
+            // Additional sentences for variety and missing topics
             GermanSentence(29, "Ich verstehe nicht.", "I don't understand.", "A1", "Language"),
             GermanSentence(30, "Wo ist der Bahnhof?", "Where is the train station?", "A1", "Travel"),
             GermanSentence(31, "Ich bin hungrig.", "I am hungry.", "A1", "Food"),
             GermanSentence(32, "Mein Handy ist kaputt.", "My phone is broken.", "A1", "Technology"),
             GermanSentence(33, "Ich sehe gern Filme.", "I like to watch movies.", "A1", "Entertainment"),
             GermanSentence(34, "Ich spiele Fußball.", "I play football.", "A1", "Sports"),
-            GermanSentence(35, "Es regnet heute.", "It's raining today.", "A1", "Weather")
+            GermanSentence(35, "Es regnet heute.", "It's raining today.", "A1", "Weather"),
+            
+            // Family topic sentences
+            GermanSentence(36, "Das ist meine Familie.", "This is my family.", "A1", "Family"),
+            GermanSentence(37, "Meine Mutter ist sehr nett.", "My mother is very nice.", "A2", "Family"),
+            GermanSentence(38, "Wir verbringen viel Zeit mit der Familie.", "We spend a lot of time with family.", "B1", "Family"),
+            GermanSentence(39, "Familienzusammenkünfte sind sehr wichtig.", "Family gatherings are very important.", "B2", "Family"),
+            
+            // Culture topic sentences
+            GermanSentence(40, "Deutsche Kultur ist sehr interessant.", "German culture is very interesting.", "A2", "Culture"),
+            GermanSentence(41, "Wir besuchen das Museum.", "We visit the museum.", "A2", "Culture"),
+            GermanSentence(42, "Die deutsche Literatur hat eine reiche Tradition.", "German literature has a rich tradition.", "B2", "Culture"),
+            GermanSentence(43, "Kulturelle Vielfalt bereichert unser Leben.", "Cultural diversity enriches our lives.", "C1", "Culture"),
+            
+            // Business topic sentences
+            GermanSentence(44, "Das Geschäft läuft gut.", "Business is going well.", "B1", "Business"),
+            GermanSentence(45, "Wir haben einen wichtigen Termin.", "We have an important appointment.", "B1", "Business"),
+            GermanSentence(46, "Die Geschäftsstrategie muss überarbeitet werden.", "The business strategy needs to be revised.", "C1", "Business"),
+            GermanSentence(47, "Internationale Handelsbeziehungen sind komplex.", "International trade relations are complex.", "C2", "Business"),
+            
+            // Science topic sentences
+            GermanSentence(48, "Die Wissenschaft ist faszinierend.", "Science is fascinating.", "B1", "Science"),
+            GermanSentence(49, "Forschung ist sehr wichtig.", "Research is very important.", "B1", "Science"),
+            GermanSentence(50, "Wissenschaftliche Erkenntnisse verändern unser Weltbild.", "Scientific discoveries change our world view.", "C1", "Science"),
+            GermanSentence(51, "Die Quantenphysik revolutioniert unser Verständnis der Realität.", "Quantum physics revolutionizes our understanding of reality.", "C2", "Science"),
+            
+            // Politics topic sentences
+            GermanSentence(52, "Politik ist ein wichtiges Thema.", "Politics is an important topic.", "B1", "Politics"),
+            GermanSentence(53, "Demokratie ist ein wertvolles Gut.", "Democracy is a valuable asset.", "B2", "Politics"),
+            GermanSentence(54, "Politische Entscheidungen beeinflussen unser tägliches Leben.", "Political decisions influence our daily lives.", "C1", "Politics"),
+            GermanSentence(55, "Die geopolitische Lage erfordert diplomatisches Geschick.", "The geopolitical situation requires diplomatic skill.", "C2", "Politics"),
+            
+            // Art topic sentences  
+            GermanSentence(56, "Kunst ist schön.", "Art is beautiful.", "A2", "Art"),
+            GermanSentence(57, "Ich male gerne.", "I like to paint.", "A2", "Art"),
+            GermanSentence(58, "Moderne Kunst ist oft schwer zu verstehen.", "Modern art is often difficult to understand.", "B2", "Art"),
+            GermanSentence(59, "Künstlerischer Ausdruck spiegelt gesellschaftliche Entwicklungen wider.", "Artistic expression reflects social developments.", "C2", "Art")
         )
     }
     

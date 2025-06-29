@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Widgets
@@ -65,32 +66,8 @@ fun WidgetCustomizationScreen(
     val allCustomizations by widgetCustomizationRepository.allWidgetCustomizations.collectAsStateWithLifecycle(
         initialValue = AllWidgetCustomizations.createDefault()
     )
-    var showResetDialog by remember { mutableStateOf(false) }
-    var isResetting by remember { mutableStateOf(false) }
-    var isApplying by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
-    // Function to apply all widget updates
-    fun applyAllChanges() {
-        scope.launch {
-            isApplying = true
-            try {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                
-                val result = widgetCustomizationRepository.updateAllWidgetCustomizations(allCustomizations)
-                if (result.isSuccess) {
-                    successMessage = "✅ All widgets updated successfully!"
-                } else {
-                    errorMessage = "❌ Failed to update widgets: ${result.exceptionOrNull()?.message}"
-                }
-            } catch (e: Exception) {
-                errorMessage = "❌ Error updating widgets: ${e.message}"
-            } finally {
-                isApplying = false
-            }
-        }
-    }
     
     // Auto-hide messages after 3 seconds
     LaunchedEffect(successMessage) {
@@ -127,44 +104,6 @@ fun WidgetCustomizationScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    // Apply All Changes Button
-                    Button(
-                        onClick = { applyAllChanges() },
-                        enabled = !isApplying && !isResetting,
-                        modifier = Modifier.padding(end = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        if (isApplying) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Text(
-                            text = if (isApplying) "Applying..." else "Apply All",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                    
-                    // Reset All Button
-                    IconButton(
-                        onClick = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showResetDialog = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Palette,
-                            contentDescription = "Reset All to Defaults"
                         )
                     }
                 },
@@ -209,10 +148,39 @@ fun WidgetCustomizationScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Personalize background colors, text sizes, and contrast for each widget type",
+                            text = "Tap any widget below to customize it. All changes are saved automatically as you make them.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+            
+            // Auto-Save Info Banner
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(UnifiedDesign.ContentPadding),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Auto-Save Enabled: Changes you make in widget details are saved automatically",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -278,54 +246,7 @@ fun WidgetCustomizationScreen(
         }
     }
     
-    // Reset Confirmation Dialog
-    if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset All Widget Customizations?") },
-            text = { 
-                Text("This will reset all widget customizations to their default settings. This action cannot be undone.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog = false
-                        isResetting = true
-                        
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        
-                        // Reset all customizations
-                        scope.launch {
-                            try {
-                                val result = widgetCustomizationRepository.resetToDefaults()
-                                if (result.isSuccess) {
-                                    successMessage = "✅ All widget customizations reset to defaults"
-                                } else {
-                                    errorMessage = "❌ Failed to reset customizations: ${result.exceptionOrNull()?.message}"
-                                }
-                            } catch (e: Exception) {
-                                errorMessage = "❌ Error resetting customizations: ${e.message}"
-                            } finally {
-                                isResetting = false
-                            }
-                        }
-                    },
-                    enabled = !isResetting
-                ) { 
-                    if (isResetting) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                    } else {
-                        Text("Reset All")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showResetDialog = false }
-                ) { Text("Cancel") }
-            }
-        )
-    }
+
 }
 
 /**
@@ -402,15 +323,15 @@ private fun WidgetCustomizationCard(
                             )
                     )
                     
-                    // Text Sizes Info
+                    // Auto Text Sizing Info
                     Column {
                         Text(
-                            text = "German: ${customization.germanTextSize.displayName}",
+                            text = "Auto text sizing enabled",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Translation: ${customization.translatedTextSize.displayName}",
+                            text = "Smart sizing based on content",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -419,7 +340,7 @@ private fun WidgetCustomizationCard(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Background: ${customization.backgroundColor.displayName} • Contrast: ${customization.textContrast.displayName}",
+                    text = "Background: ${customization.backgroundColor.displayName} • Contrast: ${customization.textContrast.displayName} • ${customization.sentencesPerDay} sentences/day",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

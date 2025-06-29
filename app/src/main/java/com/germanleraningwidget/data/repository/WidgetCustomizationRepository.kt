@@ -54,26 +54,21 @@ class WidgetCustomizationRepository(
     
     /**
      * Preference keys for widget customizations
+     * Note: Text size keys removed as auto-sizing is now implemented
      */
     private object PreferencesKeys {
         // Main Widget
         val MAIN_BACKGROUND_COLOR = stringPreferencesKey("main_background_color")
-        val MAIN_GERMAN_TEXT_SIZE = stringPreferencesKey("main_german_text_size")
-        val MAIN_TRANSLATED_TEXT_SIZE = stringPreferencesKey("main_translated_text_size")
         val MAIN_TEXT_CONTRAST = stringPreferencesKey("main_text_contrast")
         val MAIN_SENTENCES_PER_DAY = intPreferencesKey("main_sentences_per_day")
         
         // Bookmarks Widget
         val BOOKMARKS_BACKGROUND_COLOR = stringPreferencesKey("bookmarks_background_color")
-        val BOOKMARKS_GERMAN_TEXT_SIZE = stringPreferencesKey("bookmarks_german_text_size")
-        val BOOKMARKS_TRANSLATED_TEXT_SIZE = stringPreferencesKey("bookmarks_translated_text_size")
         val BOOKMARKS_TEXT_CONTRAST = stringPreferencesKey("bookmarks_text_contrast")
         val BOOKMARKS_SENTENCES_PER_DAY = intPreferencesKey("bookmarks_sentences_per_day")
         
         // Hero Widget
         val HERO_BACKGROUND_COLOR = stringPreferencesKey("hero_background_color")
-        val HERO_GERMAN_TEXT_SIZE = stringPreferencesKey("hero_german_text_size")
-        val HERO_TRANSLATED_TEXT_SIZE = stringPreferencesKey("hero_translated_text_size")
         val HERO_TEXT_CONTRAST = stringPreferencesKey("hero_text_contrast")
         val HERO_SENTENCES_PER_DAY = intPreferencesKey("hero_sentences_per_day")
     }
@@ -112,12 +107,6 @@ class WidgetCustomizationRepository(
                 backgroundColor = WidgetBackgroundColor.fromKey(
                     preferences[PreferencesKeys.MAIN_BACKGROUND_COLOR] ?: WidgetBackgroundColor.CREAM.key
                 ),
-                germanTextSize = WidgetTextSize.fromKey(
-                    preferences[PreferencesKeys.MAIN_GERMAN_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
-                ),
-                translatedTextSize = WidgetTextSize.fromKey(
-                    preferences[PreferencesKeys.MAIN_TRANSLATED_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
-                ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.MAIN_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
                 ),
@@ -128,12 +117,6 @@ class WidgetCustomizationRepository(
                 backgroundColor = WidgetBackgroundColor.fromKey(
                     preferences[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] ?: WidgetBackgroundColor.ORANGE.key
                 ),
-                germanTextSize = WidgetTextSize.fromKey(
-                    preferences[PreferencesKeys.BOOKMARKS_GERMAN_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
-                ),
-                translatedTextSize = WidgetTextSize.fromKey(
-                    preferences[PreferencesKeys.BOOKMARKS_TRANSLATED_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
-                ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
                 ),
@@ -143,12 +126,6 @@ class WidgetCustomizationRepository(
                 widgetType = WidgetType.HERO,
                 backgroundColor = WidgetBackgroundColor.fromKey(
                     preferences[PreferencesKeys.HERO_BACKGROUND_COLOR] ?: WidgetBackgroundColor.NAVY.key
-                ),
-                germanTextSize = WidgetTextSize.fromKey(
-                    preferences[PreferencesKeys.HERO_GERMAN_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
-                ),
-                translatedTextSize = WidgetTextSize.fromKey(
-                    preferences[PreferencesKeys.HERO_TRANSLATED_TEXT_SIZE] ?: WidgetTextSize.MEDIUM.key
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.HERO_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
@@ -175,22 +152,16 @@ class WidgetCustomizationRepository(
                     when (customization.widgetType) {
                         WidgetType.MAIN -> {
                             prefs[PreferencesKeys.MAIN_BACKGROUND_COLOR] = customization.backgroundColor.key
-                            prefs[PreferencesKeys.MAIN_GERMAN_TEXT_SIZE] = customization.germanTextSize.key
-                            prefs[PreferencesKeys.MAIN_TRANSLATED_TEXT_SIZE] = customization.translatedTextSize.key
                             prefs[PreferencesKeys.MAIN_TEXT_CONTRAST] = customization.textContrast.key
                             prefs[PreferencesKeys.MAIN_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                         WidgetType.BOOKMARKS -> {
                             prefs[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] = customization.backgroundColor.key
-                            prefs[PreferencesKeys.BOOKMARKS_GERMAN_TEXT_SIZE] = customization.germanTextSize.key
-                            prefs[PreferencesKeys.BOOKMARKS_TRANSLATED_TEXT_SIZE] = customization.translatedTextSize.key
                             prefs[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] = customization.textContrast.key
                             prefs[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                         WidgetType.HERO -> {
                             prefs[PreferencesKeys.HERO_BACKGROUND_COLOR] = customization.backgroundColor.key
-                            prefs[PreferencesKeys.HERO_GERMAN_TEXT_SIZE] = customization.germanTextSize.key
-                            prefs[PreferencesKeys.HERO_TRANSLATED_TEXT_SIZE] = customization.translatedTextSize.key
                             prefs[PreferencesKeys.HERO_TEXT_CONTRAST] = customization.textContrast.key
                             prefs[PreferencesKeys.HERO_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
@@ -238,22 +209,16 @@ class WidgetCustomizationRepository(
                 context.widgetCustomizationDataStore.edit { prefs ->
                     // Main widget
                     prefs[PreferencesKeys.MAIN_BACKGROUND_COLOR] = customizations.mainWidget.backgroundColor.key
-                    prefs[PreferencesKeys.MAIN_GERMAN_TEXT_SIZE] = customizations.mainWidget.germanTextSize.key
-                    prefs[PreferencesKeys.MAIN_TRANSLATED_TEXT_SIZE] = customizations.mainWidget.translatedTextSize.key
                     prefs[PreferencesKeys.MAIN_TEXT_CONTRAST] = customizations.mainWidget.textContrast.key
                     prefs[PreferencesKeys.MAIN_SENTENCES_PER_DAY] = customizations.mainWidget.sentencesPerDay
                     
                     // Bookmarks widget
                     prefs[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] = customizations.bookmarksWidget.backgroundColor.key
-                    prefs[PreferencesKeys.BOOKMARKS_GERMAN_TEXT_SIZE] = customizations.bookmarksWidget.germanTextSize.key
-                    prefs[PreferencesKeys.BOOKMARKS_TRANSLATED_TEXT_SIZE] = customizations.bookmarksWidget.translatedTextSize.key
                     prefs[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] = customizations.bookmarksWidget.textContrast.key
                     prefs[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] = customizations.bookmarksWidget.sentencesPerDay
                     
                     // Hero widget
                     prefs[PreferencesKeys.HERO_BACKGROUND_COLOR] = customizations.heroWidget.backgroundColor.key
-                    prefs[PreferencesKeys.HERO_GERMAN_TEXT_SIZE] = customizations.heroWidget.germanTextSize.key
-                    prefs[PreferencesKeys.HERO_TRANSLATED_TEXT_SIZE] = customizations.heroWidget.translatedTextSize.key
                     prefs[PreferencesKeys.HERO_TEXT_CONTRAST] = customizations.heroWidget.textContrast.key
                     prefs[PreferencesKeys.HERO_SENTENCES_PER_DAY] = customizations.heroWidget.sentencesPerDay
                 }

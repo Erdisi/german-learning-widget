@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 import com.germanleraningwidget.ui.viewmodel.AvailableLanguages
-import com.germanleraningwidget.ui.viewmodel.AvailableTopics
+import com.germanleraningwidget.data.model.AvailableTopics
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem

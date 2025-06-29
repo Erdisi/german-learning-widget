@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 data class UserPreferences(
     // Core Learning Settings - UPDATED FOR MULTI-LEVEL SUPPORT
-    val selectedGermanLevels: Set<String> = setOf("A1"), // Multi-level selection
-    val primaryGermanLevel: String = "A1", // Primary/main level for progression
+    val selectedGermanLevels: Set<String> = emptySet(), // No default selection for onboarding
+    val primaryGermanLevel: String = "", // No default primary level for onboarding
     val selectedTopics: Set<String> = setOf("Daily Life"),
     
     // Learning Behavior Settings
@@ -119,11 +119,13 @@ data class UserPreferences(
                 return ValidationResult.Error("At least one topic must be selected")
             }
             
-            if (selectedGermanLevels.isEmpty()) {
+            // Only require levels if onboarding is completed
+            if (isOnboardingCompleted && selectedGermanLevels.isEmpty()) {
                 return ValidationResult.Error("At least one German level must be selected")
             }
             
-            if (primaryGermanLevel !in selectedGermanLevels) {
+            // Only validate primary level if levels are selected
+            if (selectedGermanLevels.isNotEmpty() && primaryGermanLevel !in selectedGermanLevels) {
                 return ValidationResult.Error("Primary German level must be one of the selected levels")
             }
             
@@ -145,7 +147,8 @@ data class UserPreferences(
      */
     fun withSafeDefaults(): UserPreferences {
         val safeLevels = if (selectedGermanLevels.isEmpty() || selectedGermanLevels.any { it.isBlank() }) {
-            setOf("A1")
+            // Only apply A1 fallback if onboarding is completed (for data corruption recovery)
+            if (isOnboardingCompleted) setOf("A1") else emptySet()
         } else {
             selectedGermanLevels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
         }
@@ -156,7 +159,7 @@ data class UserPreferences(
                     "A1" -> 1; "A2" -> 2; "B1" -> 3; "B2" -> 4; "C1" -> 5; "C2" -> 6
                     else -> 1
                 }
-            } ?: "A1"
+            } ?: ""
         } else {
             primaryGermanLevel.trim()
         }
@@ -255,8 +258,8 @@ data class UserPreferences(
          * Creates UserPreferences with validation and performance optimization.
          */
         fun createSafe(
-            selectedGermanLevels: Set<String> = setOf("A1"),
-            primaryGermanLevel: String = "A1",
+            selectedGermanLevels: Set<String> = emptySet(),
+            primaryGermanLevel: String = "",
             selectedTopics: Set<String> = setOf("Daily Life"),
             isOnboardingCompleted: Boolean = false
         ): UserPreferences {
@@ -299,13 +302,16 @@ data class UserPreferences(
 
 /**
  * Available topics for German learning.
- * Optimized with Set-based lookups for performance.
+ * Unified list that works across onboarding, preferences, and sentence filtering.
  */
 object AvailableTopics {
     val topics = listOf(
-        "Daily Life", "Food", "Travel", "Work", "Family", "Health", 
-        "Education", "Technology", "Culture", "Sports", "Weather",
-        "Entertainment", "Business", "Science", "Politics", "Art"
+        // Core topics available in sample sentences
+        "Daily Life", "Greetings", "Introductions", "Food", "Travel", 
+        "Weather", "Health", "Work", "Education", "Technology", 
+        "Entertainment", "Sports", "Language",
+        // Additional advanced topics for comprehensive learning
+        "Family", "Culture", "Business", "Science", "Politics", "Art"
     )
     
     // Pre-computed set for O(1) lookups
@@ -318,12 +324,23 @@ object AvailableTopics {
     
     /**
      * Get topics suitable for a specific level.
+     * Basic levels get core topics, advanced levels get all topics.
      */
     fun getTopicsForLevel(level: String): List<String> = when (level) {
-        "C1", "C2" -> topics
-        "B1", "B2" -> topics.take(12)
-        else -> topics.take(8)
+        "C1", "C2" -> topics // Advanced users get all topics
+        "B1", "B2" -> topics.take(16) // Intermediate users get most topics
+        else -> topics.take(13) // Beginners get core topics only
     }
+    
+    /**
+     * Get topics that have sample sentences available.
+     * These are the topics that will actually work for sentence filtering.
+     */
+    fun getAvailableTopicsInSentences(): List<String> = listOf(
+        "Daily Life", "Greetings", "Introductions", "Food", "Travel", 
+        "Weather", "Health", "Work", "Education", "Technology", 
+        "Entertainment", "Sports", "Language"
+    )
 }
 
 /**

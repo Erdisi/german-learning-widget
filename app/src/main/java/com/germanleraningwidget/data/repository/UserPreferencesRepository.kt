@@ -100,6 +100,7 @@ class UserPreferencesRepository(
         val legacyGermanLevel = preferences[PreferencesKeys.GERMAN_LEVEL]
         val selectedLevels = preferences[PreferencesKeys.SELECTED_GERMAN_LEVELS]
         val primaryLevel = preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL]
+        val isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
         
         // Migration logic: if we have legacy data but no new data, migrate
         val (finalSelectedLevels, finalPrimaryLevel) = when {
@@ -114,17 +115,29 @@ class UserPreferencesRepository(
                 Pair(setOf(legacyGermanLevel), legacyGermanLevel)
             }
             
-            // No data - use defaults
+            // No data - only use A1 default if onboarding is completed (for data corruption recovery)
             else -> {
-                Pair(setOf("A1"), "A1")
+                if (isOnboardingCompleted) {
+                    Pair(setOf("A1"), "A1")
+                } else {
+                    Pair(emptySet(), "")
+                }
             }
         }
         
         return UserPreferences(
-            selectedGermanLevels = finalSelectedLevels.ifEmpty { setOf("A1") },
-            primaryGermanLevel = finalPrimaryLevel.takeIf { it.isNotBlank() && it in finalSelectedLevels } ?: "A1",
+            selectedGermanLevels = if (isOnboardingCompleted) {
+                finalSelectedLevels.ifEmpty { setOf("A1") }
+            } else {
+                finalSelectedLevels
+            },
+            primaryGermanLevel = if (isOnboardingCompleted) {
+                finalPrimaryLevel.takeIf { it.isNotBlank() && it in finalSelectedLevels } ?: "A1"
+            } else {
+                finalPrimaryLevel
+            },
             selectedTopics = preferences[PreferencesKeys.SELECTED_TOPICS]?.filter { it.isNotBlank() }?.toSet() ?: setOf("Daily Life"),
-            isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
+            isOnboardingCompleted = isOnboardingCompleted
         )
     }
     

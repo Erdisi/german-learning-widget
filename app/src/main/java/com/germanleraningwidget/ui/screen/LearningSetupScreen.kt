@@ -55,15 +55,24 @@ fun LearningSetupScreen(
 
     
     // UI state
-    var isLoading by remember { mutableStateOf(false) }
+    var isAutoSaving by remember { mutableStateOf(false) }
     var showSuccess by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
     
-    // Auto-hide success after 2 seconds
-    LaunchedEffect(showSuccess) {
-        if (showSuccess) {
-            kotlinx.coroutines.delay(2000)
-            showSuccess = false
+    // Auto-hide success message after 3 seconds
+    LaunchedEffect(successMessage) {
+        if (successMessage != null) {
+            kotlinx.coroutines.delay(3000)
+            successMessage = null
+        }
+    }
+    
+    // Auto-hide error message after 5 seconds
+    LaunchedEffect(errorMessage) {
+        if (errorMessage != null) {
+            kotlinx.coroutines.delay(5000)
+            errorMessage = null
         }
     }
     
@@ -78,15 +87,69 @@ fun LearningSetupScreen(
                     primaryLevel != userPreferences.primaryGermanLevel ||
                     selectedTopics != userPreferences.selectedTopics
     
+    // Auto-save function
+    fun autoSavePreferences() {
+        if (!isFormValid || !hasChanges || isAutoSaving) return
+        
+        scope.launch {
+            isAutoSaving = true
+            errorMessage = null
+            
+            try {
+                val updatedPreferences = UserPreferences(
+                    selectedGermanLevels = selectedLevels.filter { it.isNotBlank() }.toSet(),
+                    primaryGermanLevel = primaryLevel,
+                    selectedTopics = selectedTopics.filter { it.isNotBlank() }.toSet(),
+                    isOnboardingCompleted = true
+                )
+                
+                if (!updatedPreferences.isValid()) {
+                    errorMessage = "Invalid preferences. Please check your selections."
+                    isAutoSaving = false
+                    return@launch
+                }
+                
+                preferencesRepository.updateUserPreferences(updatedPreferences)
+                successMessage = "✅ Preferences saved automatically!"
+                isAutoSaving = false
+                
+            } catch (e: Exception) {
+                errorMessage = "❌ Failed to save preferences: ${e.message ?: "Unknown error"}"
+                isAutoSaving = false
+            }
+        }
+    }
+    
+    // Auto-save when valid changes are made
+    LaunchedEffect(selectedLevels, primaryLevel, selectedTopics) {
+        if (hasChanges && isFormValid) {
+            // Add small delay to avoid too frequent saves
+            kotlinx.coroutines.delay(500)
+            autoSavePreferences()
+        }
+    }
+    
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text(
-                        "Learning Preferences",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Learning Preferences",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isAutoSaving) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
@@ -102,272 +165,161 @@ fun LearningSetupScreen(
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier.fillMaxSize()
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = UnifiedDesign.ContentPadding),
+            verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap),
+            contentPadding = PaddingValues(
+                top = UnifiedDesign.ContentPadding,
+                bottom = UnifiedDesign.ContentPadding
+            )
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = UnifiedDesign.ContentPadding),
-                verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap),
-                contentPadding = PaddingValues(
-                    top = UnifiedDesign.ContentPadding,
-                    bottom = 144.dp
-                )
-            ) {
-                // Header Section
-                item {
-                    ElevatedUnifiedCard(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(UnifiedDesign.ContentPadding)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.School,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "Customize Your Learning",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                if (hasChanges) {
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Surface(
-                                        modifier = Modifier.size(8.dp),
-                                        shape = androidx.compose.foundation.shape.CircleShape,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    ) {}
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = if (hasChanges) {
-                                    "You have unsaved changes. Tap Save to apply them."
-                                } else {
-                                    "Adjust settings to get the most relevant German sentences for your level and interests."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (hasChanges) {
-                                    MaterialTheme.colorScheme.tertiary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                // Error message if any
-                errorMessage?.let { error ->
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Filled.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    error,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                        }
-                    }
-                }
-                
-                // German Level Section
-                item {
-                    SettingsSection(
-                        title = "German Level",
-                        subtitle = "${selectedLevels.size} ${if (selectedLevels.size == 1) "level" else "levels"} selected · Primary: $primaryLevel"
-                    ) {
-                        GermanLevelSelector(
-                            selectedLevels = selectedLevels,
-                            primaryLevel = primaryLevel,
-                            onLevelToggled = { level ->
-                                selectedLevels = if (selectedLevels.contains(level)) {
-                                    selectedLevels.toMutableSet().apply { remove(level) }
-                                } else {
-                                    selectedLevels.toMutableSet().apply { add(level) }
-                                }
-                                errorMessage = null
-                            },
-                            onPrimaryLevelChanged = { level ->
-                                if (selectedLevels.contains(level)) {
-                                    primaryLevel = level
-                                    errorMessage = null
-                                } else {
-                                    selectedLevels = selectedLevels.toMutableSet().apply { add(level) }
-                                    primaryLevel = level
-                                    errorMessage = null
-                                }
-                            }
-                        )
-                    }
-                }
-                
-                // Topics Section
-                item {
-                    SettingsSection(
-                        title = "Topics of Interest",
-                        subtitle = "${selectedTopics.size} ${if (selectedTopics.size == 1) "topic" else "topics"} selected"
-                    ) {
-                        TopicsSelector(
-                            selectedTopics = selectedTopics,
-                            onTopicToggled = { topic ->
-                                selectedTopics = if (selectedTopics.contains(topic)) {
-                                    selectedTopics.toMutableSet().apply { remove(topic) }
-                                } else {
-                                    selectedTopics.toMutableSet().apply { add(topic) }
-                                }
-                                errorMessage = null
-                            }
-                        )
-                    }
-                }
-            }
-            
-            // Success Animation
-            AnimatedVisibility(
-                visible = showSuccess,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            // Auto-Save Info Banner
+            item {
+                ElevatedUnifiedCard(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Filled.Check,
+                            imageVector = Icons.Filled.AutoAwesome,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Preferences saved!",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Auto-Save Enabled",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Your learning preferences are saved automatically as you make changes.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
             
-            // Floating Save Button
-            AnimatedVisibility(
-                visible = hasChanges && isFormValid && !showSuccess && !isLoading,
-                enter = slideInVertically(
-                    initialOffsetY = { fullHeight -> fullHeight }
-                ) + fadeIn(
-                    animationSpec = tween(300)
-                ),
-                exit = slideOutVertically(
-                    targetOffsetY = { fullHeight -> fullHeight }
-                ) + fadeOut(
-                    animationSpec = tween(200)
-                ),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 96.dp)
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        if (isLoading) return@FloatingActionButton
-                        
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        
-                        isLoading = true
-                        errorMessage = null
-                        
-                        val updatedPreferences = UserPreferences(
-                            selectedGermanLevels = selectedLevels.filter { it.isNotBlank() }.toSet(),
-                            primaryGermanLevel = primaryLevel,
-                            selectedTopics = selectedTopics.filter { it.isNotBlank() }.toSet(),
-                            isOnboardingCompleted = true
+            // Success Message
+            successMessage?.let { message ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
-                        
-                        scope.launch {
-                            try {
-                                if (!updatedPreferences.isValid()) {
-                                    errorMessage = "Invalid preferences. Please check your selections."
-                                    isLoading = false
-                                    return@launch
-                                }
-                                
-                                preferencesRepository.updateUserPreferences(updatedPreferences)
-                                
-                                isLoading = false
-                                showSuccess = true
-                            } catch (e: Exception) {
-                                errorMessage = "Failed to save preferences: ${e.message ?: "Unknown error"}"
-                                isLoading = false
-                            }
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 8.dp,
-                        pressedElevation = 12.dp,
-                        hoveredElevation = 10.dp
-                    )
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.5.dp
-                        )
-                    } else {
+                    ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Filled.Check,
-                                contentDescription = "Save preferences",
-                                modifier = Modifier.size(18.dp)
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                "Save",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
+                }
+            }
+            
+            // Error message if any
+            errorMessage?.let { error ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                error,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // German Level Section
+            item {
+                SettingsSection(
+                    title = "German Level",
+                    subtitle = "${selectedLevels.size} ${if (selectedLevels.size == 1) "level" else "levels"} selected · Primary: $primaryLevel",
+                    isLoading = isAutoSaving
+                ) {
+                    GermanLevelSelector(
+                        selectedLevels = selectedLevels,
+                        primaryLevel = primaryLevel,
+                        isLoading = isAutoSaving,
+                        onLevelToggled = { level ->
+                            selectedLevels = if (selectedLevels.contains(level)) {
+                                selectedLevels.toMutableSet().apply { remove(level) }
+                            } else {
+                                selectedLevels.toMutableSet().apply { add(level) }
+                            }
+                            errorMessage = null
+                        },
+                        onPrimaryLevelChanged = { level ->
+                            if (selectedLevels.contains(level)) {
+                                primaryLevel = level
+                                errorMessage = null
+                            } else {
+                                selectedLevels = selectedLevels.toMutableSet().apply { add(level) }
+                                primaryLevel = level
+                                errorMessage = null
+                            }
+                        }
+                    )
+                }
+            }
+            
+            // Topics Section
+            item {
+                SettingsSection(
+                    title = "Topics of Interest",
+                    subtitle = "${selectedTopics.size} ${if (selectedTopics.size == 1) "topic" else "topics"} selected",
+                    isLoading = isAutoSaving
+                ) {
+                    TopicsSelector(
+                        selectedTopics = selectedTopics,
+                        isLoading = isAutoSaving,
+                        onTopicToggled = { topic ->
+                            selectedTopics = if (selectedTopics.contains(topic)) {
+                                selectedTopics.toMutableSet().apply { remove(topic) }
+                            } else {
+                                selectedTopics.toMutableSet().apply { add(topic) }
+                            }
+                            errorMessage = null
+                        }
+                    )
                 }
             }
         }
@@ -378,14 +330,27 @@ fun LearningSetupScreen(
 private fun SettingsSection(
     title: String,
     subtitle: String,
+    isLoading: Boolean = false,
     content: @Composable () -> Unit
 ) {
     Column {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            if (isLoading) {
+                Spacer(modifier = Modifier.width(12.dp))
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
@@ -400,6 +365,7 @@ private fun SettingsSection(
 private fun GermanLevelSelector(
     selectedLevels: Set<String>,
     primaryLevel: String,
+    isLoading: Boolean,
     onLevelToggled: (String) -> Unit,
     onPrimaryLevelChanged: (String) -> Unit
 ) {
@@ -411,6 +377,7 @@ private fun GermanLevelSelector(
                 level = level,
                 isSelected = selectedLevels.contains(level),
                 isPrimary = level == primaryLevel,
+                isLoading = isLoading,
                 onToggle = { onLevelToggled(level) },
                 onSetPrimary = { onPrimaryLevelChanged(level) }
             )
@@ -449,11 +416,12 @@ private fun LevelCard(
     level: String,
     isSelected: Boolean,
     isPrimary: Boolean,
+    isLoading: Boolean,
     onToggle: () -> Unit,
     onSetPrimary: () -> Unit
 ) {
     UnifiedCard(
-        onClick = onToggle,
+        onClick = if (isLoading) { {} } else { onToggle },
         modifier = Modifier.fillMaxWidth(),
         colors = UnifiedDesign.cardColors(
             containerColor = if (isSelected) {
@@ -471,7 +439,8 @@ private fun LevelCard(
         ) {
             Checkbox(
                 checked = isSelected,
-                onCheckedChange = { onToggle() }
+                onCheckedChange = if (isLoading) null else { { onToggle() } },
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -481,7 +450,12 @@ private fun LevelCard(
                     Text(
                         text = level,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isLoading) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                     )
                     if (isPrimary) {
                         Spacer(modifier = Modifier.width(8.dp))
@@ -496,14 +470,19 @@ private fun LevelCard(
                 Text(
                     text = getLevelDescription(level),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isLoading) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
             
             if (isSelected && !isPrimary) {
                 TextButton(
                     onClick = onSetPrimary,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = 8.dp),
+                    enabled = !isLoading
                 ) {
                     Text(
                         "Set Primary",
@@ -518,9 +497,10 @@ private fun LevelCard(
 @Composable
 private fun TopicsSelector(
     selectedTopics: Set<String>,
+    isLoading: Boolean,
     onTopicToggled: (String) -> Unit
 ) {
-    val chunkedTopics = AvailableTopics.topics.chunked(3)
+    val chunkedTopics = com.germanleraningwidget.data.model.AvailableTopics.topics.chunked(3)
     
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         chunkedTopics.forEach { rowTopics ->
@@ -531,6 +511,7 @@ private fun TopicsSelector(
                     TopicChip(
                         topic = topic,
                         isSelected = selectedTopics.contains(topic),
+                        isLoading = isLoading,
                         onClick = { onTopicToggled(topic) }
                     )
                 }
@@ -543,13 +524,23 @@ private fun TopicsSelector(
 private fun TopicChip(
     topic: String,
     isSelected: Boolean,
+    isLoading: Boolean,
     onClick: () -> Unit
 ) {
     FilterChip(
-        onClick = onClick,
-        label = { Text(topic) },
+        onClick = if (isLoading) { {} } else { onClick },
+        label = { 
+            Text(
+                topic,
+                color = if (isLoading) {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            ) 
+        },
         selected = isSelected,
-        enabled = true,
+        enabled = !isLoading,
         modifier = Modifier.height(40.dp),
         shape = RoundedCornerShape(20.dp),
         leadingIcon = {
@@ -561,8 +552,6 @@ private fun TopicChip(
         }
     )
 }
-
-
 
 private fun getTopicEmoji(topic: String): String {
     return when (topic) {

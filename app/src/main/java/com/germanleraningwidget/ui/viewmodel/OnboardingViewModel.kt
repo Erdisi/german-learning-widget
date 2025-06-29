@@ -347,7 +347,7 @@ class OnboardingViewModel(
             return UserPreferences.ValidationResult.Error("Please select at least one topic")
         }
         
-        val invalidTopics = state.selectedTopics.filter { !AvailableTopics.topics.contains(it) }
+        val invalidTopics = state.selectedTopics.filter { !com.germanleraningwidget.data.model.AvailableTopics.topics.contains(it) }
         if (invalidTopics.isNotEmpty()) {
             return UserPreferences.ValidationResult.Error("Some selected topics are invalid")
         }
@@ -431,8 +431,8 @@ class OnboardingViewModel(
  */
 data class OnboardingUiState(
     // Multi-level German selection
-    val selectedGermanLevels: Set<String> = setOf("A1"),
-    val primaryGermanLevel: String = "A1",
+    val selectedGermanLevels: Set<String> = emptySet(),
+    val primaryGermanLevel: String = "",
     
     // Other preferences
     val selectedTopics: MutableSet<String> = mutableSetOf(),
@@ -454,47 +454,8 @@ data class OnboardingUiState(
                                     primaryGermanLevel in selectedGermanLevels
 }
 
-/**
- * Available topics for German learning.
- * Organized by difficulty and relevance.
- */
-object AvailableTopics {
-    val topics = listOf(
-        "Greetings",
-        "Introductions", 
-        "Daily Life",
-        "Food",
-        "Travel",
-        "Weather",
-        "Health",
-        "Work",
-        "Education",
-        "Technology",
-        "Entertainment",
-        "Sports",
-        "Language"
-    ).sorted()
-    
-    /**
-     * Get topics recommended for beginners.
-     */
-    val beginnerTopics = listOf(
-        "Greetings",
-        "Introductions",
-        "Daily Life",
-        "Food"
-    )
-    
-    /**
-     * Get topics by difficulty level.
-     */
-    fun getTopicsForLevel(level: GermanLevel): List<String> {
-        return when (level) {
-            GermanLevel.A1, GermanLevel.A2 -> beginnerTopics
-            else -> topics
-        }
-    }
-}
+// AvailableTopics moved to UserPreferences.kt for unified topic management
+// Now using com.germanleraningwidget.data.model.AvailableTopics across the entire app
 
 /**
  * Available native languages.

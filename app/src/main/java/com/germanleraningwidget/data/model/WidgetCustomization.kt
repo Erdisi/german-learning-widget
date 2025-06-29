@@ -7,12 +7,13 @@ import androidx.compose.ui.graphics.toArgb
 /**
  * Widget customization settings for individual widget types.
  * Each widget can have its own unique customization settings.
+ * 
+ * Note: Text sizes are now automatically calculated based on content length
+ * and available space, removing the need for manual text size controls.
  */
 data class WidgetCustomization(
     val widgetType: WidgetType,
     val backgroundColor: WidgetBackgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType),
-    val germanTextSize: WidgetTextSize = WidgetTextSize.MEDIUM,
-    val translatedTextSize: WidgetTextSize = WidgetTextSize.MEDIUM,
     val textContrast: WidgetTextContrast = WidgetTextContrast.NORMAL,
     val sentencesPerDay: Int = DEFAULT_SENTENCES_PER_DAY
 ) {
@@ -75,8 +76,6 @@ data class WidgetCustomization(
             return WidgetCustomization(
                 widgetType = widgetType,
                 backgroundColor = WidgetBackgroundColor.STONE,
-                germanTextSize = WidgetTextSize.LARGE,
-                translatedTextSize = WidgetTextSize.LARGE,
                 textContrast = WidgetTextContrast.HIGH,
                 sentencesPerDay = DEFAULT_SENTENCES_PER_DAY
             )
@@ -88,15 +87,6 @@ data class WidgetCustomization(
      */
     fun validate(): ValidationResult {
         return try {
-            // Basic validation
-            if (germanTextSize.scaleFactor < 0.5f || germanTextSize.scaleFactor > 2.0f) {
-                return ValidationResult.Error("German text size scale factor must be between 0.5 and 2.0")
-            }
-            
-            if (translatedTextSize.scaleFactor < 0.5f || translatedTextSize.scaleFactor > 2.0f) {
-                return ValidationResult.Error("Translated text size scale factor must be between 0.5 and 2.0")
-            }
-            
             // Validate sentences per day
             if (sentencesPerDay < MIN_SENTENCES_PER_DAY || sentencesPerDay > MAX_SENTENCES_PER_DAY) {
                 return ValidationResult.Error("Sentences per day must be between $MIN_SENTENCES_PER_DAY and $MAX_SENTENCES_PER_DAY")
@@ -132,10 +122,9 @@ data class WidgetCustomization(
      */
     val customizationSummary: String get() = buildString {
         append("Background: ${backgroundColor.displayName}")
-        append(" • German: ${germanTextSize.displayName}")
-        append(" • Translation: ${translatedTextSize.displayName}")
         append(" • Contrast: ${textContrast.displayName}")
         append(" • ${sentencesPerDay}/day")
+        append(" • Auto text sizing")
     }
     
     /**
@@ -256,29 +245,6 @@ enum class WidgetBackgroundColor(
 }
 
 /**
- * Text size options for widget text.
- */
-enum class WidgetTextSize(
-    val key: String,
-    val displayName: String,
-    val scaleFactor: Float,
-    val description: String
-) {
-    SMALL("small", "Small", 0.8f, "Compact text for more content"),
-    MEDIUM("medium", "Medium", 1.0f, "Standard readable text size"),
-    LARGE("large", "Large", 1.2f, "Larger text for better readability"),
-    EXTRA_LARGE("extra_large", "Extra Large", 1.4f, "Maximum text size for accessibility");
-    
-    companion object {
-        fun fromKey(key: String): WidgetTextSize {
-            return values().find { it.key == key } ?: MEDIUM
-        }
-        
-        fun getAllSizes(): List<WidgetTextSize> = values().toList()
-    }
-}
-
-/**
  * Text contrast options for widget text.
  */
 enum class WidgetTextContrast(
@@ -300,8 +266,6 @@ enum class WidgetTextContrast(
         fun getAllContrasts(): List<WidgetTextContrast> = values().toList()
     }
 }
-
-
 
 /**
  * Complete widget customization container for all widgets.
@@ -369,6 +333,7 @@ data class AllWidgetCustomizations(
         append("Main: ${mainWidget.backgroundColor.displayName}")
         append(" • Bookmarks: ${bookmarksWidget.backgroundColor.displayName}")
         append(" • Hero: ${heroWidget.backgroundColor.displayName}")
+        append(" • Auto text sizing")
     }
     
     companion object {

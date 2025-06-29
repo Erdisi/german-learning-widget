@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,15 +40,17 @@ import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
 
 /**
- * Widget Details Customization Screen - Detailed customization for a specific widget.
+ * Widget Details Customization Screen - AUTO-SAVE VERSION
  * 
  * Features:
  * - Background color selection with color palette
- * - German text size adjustment
+ * - German text size adjustment  
  * - Translated text size adjustment
  * - Text contrast options
+ * - Sentences per day configuration
  * - Live preview of changes
- * - Immediate updates to home screen widgets
+ * - AUTOMATIC SAVING: Changes are saved immediately when made
+ * - Real-time feedback with success/error messages
  * - Reset to defaults functionality
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,58 +75,94 @@ fun WidgetDetailsCustomizationScreen(
         initialValue = WidgetCustomization.createDefault(widgetType)
     )
     
+    // UI State for auto-save feedback
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var showResetDialog by remember { mutableStateOf(false) }
-    var isResetting by remember { mutableStateOf(false) }
-    var isApplying by remember { mutableStateOf(false) }
-    var pendingCustomization by remember { mutableStateOf<WidgetCustomization?>(null) }
     
-    // Track if there are unsaved changes
-    val hasUnsavedChanges = pendingCustomization != null && pendingCustomization != currentCustomization
+    // Loading states for individual operations
+    var isSavingBackground by remember { mutableStateOf(false) }
+    var isSavingContrast by remember { mutableStateOf(false) }
+    var isSavingSentencesPerDay by remember { mutableStateOf(false) }
     
-    // Auto-hide messages after 3 seconds
+    // Auto-hide success messages after 2 seconds
     LaunchedEffect(successMessage) {
         if (successMessage != null) {
-            kotlinx.coroutines.delay(3000)
+            kotlinx.coroutines.delay(2000)
             successMessage = null
         }
     }
     
+    // Auto-hide error messages after 4 seconds
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
-            kotlinx.coroutines.delay(5000)
+            kotlinx.coroutines.delay(4000)
             errorMessage = null
         }
     }
     
-    // Initialize pending customization when current customization loads
-    LaunchedEffect(currentCustomization) {
-        if (pendingCustomization == null) {
-            pendingCustomization = currentCustomization
+    // Auto-save functions for each customization type
+    fun saveBackgroundColor(color: WidgetBackgroundColor) {
+        scope.launch {
+            isSavingBackground = true
+            try {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                
+                val updatedCustomization = currentCustomization.copy(backgroundColor = color)
+                val result = widgetCustomizationRepository.updateWidgetCustomization(updatedCustomization)
+                
+                if (result.isSuccess) {
+                    successMessage = "✅ Background color updated!"
+                } else {
+                    errorMessage = "❌ Failed to update background color"
+                }
+            } catch (e: Exception) {
+                errorMessage = "❌ Error updating background: ${e.message}"
+            } finally {
+                isSavingBackground = false
+            }
         }
     }
     
-    // Function to apply changes to widgets
-    fun applyChanges() {
-        pendingCustomization?.let { customization ->
-            scope.launch {
-                isApplying = true
-                try {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    
-                    val result = widgetCustomizationRepository.updateWidgetCustomization(customization)
-                    if (result.isSuccess) {
-                        successMessage = "✅ Widget updated successfully!"
-                        pendingCustomization = customization // Sync pending with applied
-                    } else {
-                        errorMessage = "❌ Failed to update widget: ${result.exceptionOrNull()?.message}"
-                    }
-                } catch (e: Exception) {
-                    errorMessage = "❌ Error updating widget: ${e.message}"
-                } finally {
-                    isApplying = false
+    fun saveTextContrast(contrast: WidgetTextContrast) {
+        scope.launch {
+            isSavingContrast = true
+            try {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                
+                val updatedCustomization = currentCustomization.copy(textContrast = contrast)
+                val result = widgetCustomizationRepository.updateWidgetCustomization(updatedCustomization)
+                
+                if (result.isSuccess) {
+                    successMessage = "✅ Text contrast updated!"
+                } else {
+                    errorMessage = "❌ Failed to update text contrast"
                 }
+            } catch (e: Exception) {
+                errorMessage = "❌ Error updating contrast: ${e.message}"
+            } finally {
+                isSavingContrast = false
+            }
+        }
+    }
+    
+    fun saveSentencesPerDay(count: Int) {
+        scope.launch {
+            isSavingSentencesPerDay = true
+            try {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                
+                val updatedCustomization = currentCustomization.copy(sentencesPerDay = count)
+                val result = widgetCustomizationRepository.updateWidgetCustomization(updatedCustomization)
+                
+                if (result.isSuccess) {
+                    successMessage = "✅ Update frequency changed!"
+                } else {
+                    errorMessage = "❌ Failed to update frequency"
+                }
+            } catch (e: Exception) {
+                errorMessage = "❌ Error updating frequency: ${e.message}"
+            } finally {
+                isSavingSentencesPerDay = false
             }
         }
     }
@@ -132,11 +171,20 @@ fun WidgetDetailsCustomizationScreen(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text(
-                        text = widgetType.displayName,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    ) 
+                    Column {
+                        Text(
+                            text = widgetType.displayName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isSavingBackground || isSavingContrast || isSavingSentencesPerDay) {
+                            Text(
+                                text = "Saving changes...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(
@@ -152,40 +200,20 @@ fun WidgetDetailsCustomizationScreen(
                     }
                 },
                 actions = {
-                    // Apply Changes Button
-                    Button(
-                        onClick = { applyChanges() },
-                        enabled = hasUnsavedChanges && !isApplying,
-                        modifier = Modifier.padding(end = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (hasUnsavedChanges) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (hasUnsavedChanges) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    // Auto-save indicator
+                    if (isSavingBackground || isSavingContrast || isSavingSentencesPerDay) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                    ) {
-                        if (isApplying) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
                         Text(
-                            text = if (isApplying) "Applying..." else "Apply Changes",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                    
-                    // Reset Button
-                    IconButton(
-                        onClick = {
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showResetDialog = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Reset to Default"
+                            text = "Saving...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp)
                         )
                     }
                 },
@@ -202,11 +230,40 @@ fun WidgetDetailsCustomizationScreen(
             contentPadding = PaddingValues(UnifiedDesign.ContentPadding),
             verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap)
         ) {
+            // Auto-Save Info Banner
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(UnifiedDesign.ContentPadding),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Auto-Save Enabled: Changes are saved automatically as you make them",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
             // Widget Preview Section
             item {
                 WidgetPreviewCard(
                     widgetType = widgetType,
-                    customization = pendingCustomization ?: currentCustomization
+                    customization = currentCustomization
                 )
             }
             
@@ -219,12 +276,23 @@ fun WidgetDetailsCustomizationScreen(
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     ) {
-                        Text(
-                            text = message,
+                        Row(
                             modifier = Modifier.padding(UnifiedDesign.ContentPadding),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = message,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }
@@ -237,40 +305,21 @@ fun WidgetDetailsCustomizationScreen(
                             containerColor = MaterialTheme.colorScheme.errorContainer
                         )
                     ) {
-                        Text(
-                            text = message,
-                            modifier = Modifier.padding(UnifiedDesign.ContentPadding),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                }
-            }
-            
-            // Unsaved Changes Indicator
-            if (hasUnsavedChanges) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
-                    ) {
                         Row(
                             modifier = Modifier.padding(UnifiedDesign.ContentPadding),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Edit,
+                                imageVector = Icons.Filled.ErrorOutline,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "You have unsaved changes. Tap 'Apply Changes' to update your widget.",
+                                text = message,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = MaterialTheme.colorScheme.onErrorContainer
                             )
                         }
                     }
@@ -280,10 +329,12 @@ fun WidgetDetailsCustomizationScreen(
             // Background Color Section
             item {
                 BackgroundColorSection(
-                    currentColor = (pendingCustomization ?: currentCustomization).backgroundColor,
+                    currentColor = currentCustomization.backgroundColor,
+                    isLoading = isSavingBackground,
                     onColorSelected = { color ->
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pendingCustomization = (pendingCustomization ?: currentCustomization).copy(backgroundColor = color)
+                        if (!isSavingBackground) {
+                            saveBackgroundColor(color)
+                        }
                     }
                 )
             }
@@ -291,35 +342,12 @@ fun WidgetDetailsCustomizationScreen(
             // Sentences per Day Section
             item {
                 SentencesPerDaySection(
-                    currentSentencesPerDay = (pendingCustomization ?: currentCustomization).sentencesPerDay,
+                    currentSentencesPerDay = currentCustomization.sentencesPerDay,
+                    isLoading = isSavingSentencesPerDay,
                     onSentencesPerDaySelected = { count ->
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pendingCustomization = (pendingCustomization ?: currentCustomization).copy(sentencesPerDay = count)
-                    }
-                )
-            }
-            
-            // Text Size Sections
-            item {
-                TextSizeSection(
-                    title = "German Text Size",
-                    description = "Adjust the size of German text in the widget",
-                    currentSize = (pendingCustomization ?: currentCustomization).germanTextSize,
-                    onSizeSelected = { size ->
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pendingCustomization = (pendingCustomization ?: currentCustomization).copy(germanTextSize = size)
-                    }
-                )
-            }
-            
-            item {
-                TextSizeSection(
-                    title = "Translation Text Size",
-                    description = "Adjust the size of translated text in the widget",
-                    currentSize = (pendingCustomization ?: currentCustomization).translatedTextSize,
-                    onSizeSelected = { size ->
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pendingCustomization = (pendingCustomization ?: currentCustomization).copy(translatedTextSize = size)
+                        if (!isSavingSentencesPerDay) {
+                            saveSentencesPerDay(count)
+                        }
                     }
                 )
             }
@@ -327,65 +355,19 @@ fun WidgetDetailsCustomizationScreen(
             // Text Contrast Section
             item {
                 TextContrastSection(
-                    currentContrast = (pendingCustomization ?: currentCustomization).textContrast,
+                    currentContrast = currentCustomization.textContrast,
+                    isLoading = isSavingContrast,
                     onContrastSelected = { contrast ->
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pendingCustomization = (pendingCustomization ?: currentCustomization).copy(textContrast = contrast)
+                        if (!isSavingContrast) {
+                            saveTextContrast(contrast)
+                        }
                     }
                 )
             }
         }
     }
     
-    // Reset Confirmation Dialog
-    if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset Widget to Default?") },
-            text = { 
-                Text("This will reset the ${widgetType.displayName} customization to default settings. This action cannot be undone.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog = false
-                        isResetting = true
-                        
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        
-                        scope.launch {
-                            try {
-                                val result = widgetCustomizationRepository.resetWidgetToDefault(widgetType)
-                                if (result.isSuccess) {
-                                    successMessage = "✅ Widget reset to default settings"
-                                    // Reset pending customization to default as well
-                                    pendingCustomization = WidgetCustomization.createDefault(widgetType)
-                                } else {
-                                    errorMessage = "❌ Failed to reset widget: ${result.exceptionOrNull()?.message}"
-                                }
-                            } catch (e: Exception) {
-                                errorMessage = "❌ Error resetting widget: ${e.message}"
-                            } finally {
-                                isResetting = false
-                            }
-                        }
-                    },
-                    enabled = !isResetting
-                ) { 
-                    if (isResetting) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                    } else {
-                        Text("Reset")
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showResetDialog = false }
-                ) { Text("Cancel") }
-            }
-        )
-    }
+
 }
 
 /**
@@ -481,10 +463,10 @@ private fun MainWidgetPreview(customization: WidgetCustomization) {
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // German text
+        // German text (using automatic sizing)
         Text(
             text = "Guten Morgen!",
-            fontSize = (18 * customization.germanTextSize.scaleFactor * 0.9f).sp,
+            fontSize = (18 * 0.9f).sp, // Preview uses standard size
             fontWeight = FontWeight.Bold,
             color = getContrastingTextColor(customization.backgroundColor.centerColor),
             modifier = Modifier.fillMaxWidth()
@@ -492,10 +474,10 @@ private fun MainWidgetPreview(customization: WidgetCustomization) {
         
         Spacer(modifier = Modifier.height(6.dp))
         
-        // Translation
+        // Translation (using automatic sizing)
         Text(
             text = "Good morning!",
-            fontSize = (14 * customization.translatedTextSize.scaleFactor * 0.9f).sp,
+            fontSize = (14 * 0.9f).sp, // Preview uses standard size
             color = getContrastingTextColor(customization.backgroundColor.centerColor).copy(alpha = 0.8f),
             modifier = Modifier.fillMaxWidth()
         )
@@ -569,10 +551,10 @@ private fun BookmarksWidgetPreview(customization: WidgetCustomization) {
         
         Spacer(modifier = Modifier.height(8.dp))
         
-        // German text
+        // German text (using automatic sizing)
         Text(
             text = "Wie geht's?",
-            fontSize = (18 * customization.germanTextSize.scaleFactor * 0.9f).sp,
+            fontSize = (18 * 0.9f).sp, // Preview uses standard size
             fontWeight = FontWeight.Bold,
             color = getContrastingTextColor(customization.backgroundColor.centerColor),
             modifier = Modifier.fillMaxWidth()
@@ -580,10 +562,10 @@ private fun BookmarksWidgetPreview(customization: WidgetCustomization) {
         
         Spacer(modifier = Modifier.height(6.dp))
         
-        // Translation
+        // Translation (using automatic sizing)
         Text(
             text = "How are you?",
-            fontSize = (14 * customization.translatedTextSize.scaleFactor * 0.9f).sp,
+            fontSize = (14 * 0.9f).sp, // Preview uses standard size
             color = getContrastingTextColor(customization.backgroundColor.centerColor).copy(alpha = 0.8f),
             modifier = Modifier.fillMaxWidth()
         )
@@ -703,10 +685,10 @@ private fun HeroWidgetPreview(customization: WidgetCustomization) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // German text
+            // German text (using automatic sizing)
             Text(
                 text = "Schönen Tag!",
-                fontSize = (22 * customization.germanTextSize.scaleFactor * 0.7f).sp,
+                fontSize = (22 * 0.7f).sp, // Preview uses standard size
                 fontWeight = FontWeight.Bold,
                 color = getContrastingTextColor(customization.backgroundColor.centerColor),
                 textAlign = TextAlign.Center
@@ -714,10 +696,10 @@ private fun HeroWidgetPreview(customization: WidgetCustomization) {
             
             Spacer(modifier = Modifier.height(6.dp))
             
-            // Translation
+            // Translation (using automatic sizing)
             Text(
                 text = "Have a nice day!",
-                fontSize = (16 * customization.translatedTextSize.scaleFactor * 0.7f).sp,
+                fontSize = (16 * 0.7f).sp, // Preview uses standard size
                 color = getContrastingTextColor(customization.backgroundColor.centerColor).copy(alpha = 0.8f),
                 textAlign = TextAlign.Center
             )
@@ -806,10 +788,14 @@ private fun HeroWidgetPreview(customization: WidgetCustomization) {
 @Composable
 private fun BackgroundColorSection(
     currentColor: WidgetBackgroundColor,
+    isLoading: Boolean,
     onColorSelected: (WidgetBackgroundColor) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLoading) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else CardDefaults.cardColors().containerColor
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -828,12 +814,21 @@ private fun BackgroundColorSection(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
+                
+                if (isLoading) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Choose a background color for your widget",
+                text = if (isLoading) "Saving background color..." else "Choose a background color for your widget",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isLoading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -850,7 +845,8 @@ private fun BackgroundColorSection(
                         ColorSelectionCircle(
                             color = color,
                             isSelected = color == currentColor,
-                            onClick = { onColorSelected(color) }
+                            isEnabled = !isLoading,
+                            onClick = { if (!isLoading) onColorSelected(color) }
                         )
                     }
                     // Fill remaining spots in row if needed
@@ -871,6 +867,7 @@ private fun BackgroundColorSection(
 private fun ColorSelectionCircle(
     color: WidgetBackgroundColor,
     isSelected: Boolean,
+    isEnabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val scale by animateFloatAsState(
@@ -886,100 +883,28 @@ private fun ColorSelectionCircle(
             .clip(CircleShape)
             .background(
                 // Use solid center color to match actual widget appearance
-                color.centerColor
+                if (isEnabled) color.centerColor else color.centerColor.copy(alpha = 0.5f)
             )
             .border(
                 width = if (isSelected) 3.dp else 1.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 shape = CircleShape
             )
-            .clickable { onClick() },
+            .clickable(enabled = isEnabled) { onClick() },
         contentAlignment = Alignment.Center
     ) {
         if (isSelected) {
             Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = "Selected",
-                tint = getContrastingTextColor(color.centerColor),
+                tint = getContrastingTextColor(color.centerColor).copy(alpha = if (isEnabled) 1f else 0.5f),
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
-/**
- * Text Size Selection Component.
- */
-@Composable
-private fun TextSizeSection(
-    title: String,
-    description: String,
-    currentSize: WidgetTextSize,
-    onSizeSelected: (WidgetTextSize) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.FormatSize,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Size Options
-            WidgetTextSize.getAllSizes().forEach { size ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = size == currentSize,
-                            onClick = { onSizeSelected(size) }
-                        )
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = size == currentSize,
-                        onClick = { onSizeSelected(size) }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = size.displayName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (size == currentSize) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                        Text(
-                            text = size.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
+
 
 /**
  * Text Contrast Selection Component.
@@ -987,10 +912,14 @@ private fun TextSizeSection(
 @Composable
 private fun TextContrastSection(
     currentContrast: WidgetTextContrast,
+    isLoading: Boolean,
     onContrastSelected: (WidgetTextContrast) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLoading) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else CardDefaults.cardColors().containerColor
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -1009,12 +938,21 @@ private fun TextContrastSection(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
+                
+                if (isLoading) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Adjust text contrast for better readability",
+                text = if (isLoading) "Saving text contrast..." else "Adjust text contrast for better readability",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isLoading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
             
@@ -1025,26 +963,29 @@ private fun TextContrastSection(
                         .fillMaxWidth()
                         .selectable(
                             selected = contrast == currentContrast,
-                            onClick = { onContrastSelected(contrast) }
+                            enabled = !isLoading,
+                            onClick = { if (!isLoading) onContrastSelected(contrast) }
                         )
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
                         selected = contrast == currentContrast,
-                        onClick = { onContrastSelected(contrast) }
+                        enabled = !isLoading,
+                        onClick = { if (!isLoading) onContrastSelected(contrast) }
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
                             text = contrast.displayName,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (contrast == currentContrast) FontWeight.SemiBold else FontWeight.Normal
+                            fontWeight = if (contrast == currentContrast) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isLoading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = contrast.description,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -1059,10 +1000,14 @@ private fun TextContrastSection(
 @Composable
 private fun SentencesPerDaySection(
     currentSentencesPerDay: Int,
+    isLoading: Boolean,
     onSentencesPerDaySelected: (Int) -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLoading) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else CardDefaults.cardColors().containerColor
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -1081,12 +1026,21 @@ private fun SentencesPerDaySection(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
+                
+                if (isLoading) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Control how often your widget shows new sentences throughout the day",
+                text = if (isLoading) "Saving update frequency..." else "Control how often your widget shows new sentences throughout the day",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isLoading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -1095,15 +1049,19 @@ private fun SentencesPerDaySection(
                 Text(
                     text = "Select sentences per day: $currentSentencesPerDay",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    color = if (isLoading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Slider(
                     value = currentSentencesPerDay.toFloat(),
                     onValueChange = { value ->
-                        onSentencesPerDaySelected(value.toInt())
+                        if (!isLoading) {
+                            onSentencesPerDaySelected(value.toInt())
+                        }
                     },
+                    enabled = !isLoading,
                     valueRange = WidgetCustomization.MIN_SENTENCES_PER_DAY.toFloat()..WidgetCustomization.MAX_SENTENCES_PER_DAY.toFloat(),
                     steps = WidgetCustomization.MAX_SENTENCES_PER_DAY - WidgetCustomization.MIN_SENTENCES_PER_DAY - 1,
                     modifier = Modifier.fillMaxWidth()
@@ -1117,12 +1075,12 @@ private fun SentencesPerDaySection(
                     Text(
                         text = "${WidgetCustomization.MIN_SENTENCES_PER_DAY} per day",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "${WidgetCustomization.MAX_SENTENCES_PER_DAY} per day",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1133,7 +1091,7 @@ private fun SentencesPerDaySection(
             Text(
                 text = "Quick Select:",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -1143,7 +1101,8 @@ private fun SentencesPerDaySection(
                 items(listOf(1, 3, 5, 10)) { count ->
                     FilterChip(
                         selected = currentSentencesPerDay == count,
-                        onClick = { onSentencesPerDaySelected(count) },
+                        enabled = !isLoading,
+                        onClick = { if (!isLoading) onSentencesPerDaySelected(count) },
                         label = {
                             Text(
                                 text = "$count/day",
@@ -1162,8 +1121,6 @@ private fun SentencesPerDaySection(
                     )
                 }
             }
-            
-
         }
     }
 }

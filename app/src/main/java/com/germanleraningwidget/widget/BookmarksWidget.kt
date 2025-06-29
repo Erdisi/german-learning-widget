@@ -82,11 +82,12 @@ class BookmarksWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_bookmarks_translation, currentSentence.translation)
                     views.setTextViewText(R.id.widget_bookmarks_topic, currentSentence.topic)
                     
-                    // Apply text customizations
-                    WidgetCustomizationHelper.applyTextCustomizations(
+                    // Apply automatic text customizations based on content
+                    WidgetCustomizationHelper.applyAutoTextCustomizations(
                         views, customization,
                         R.id.widget_bookmarks_german_text, R.id.widget_bookmarks_translation,
-                        18f, 14f // Base sizes for bookmarks widget
+                        currentSentence.germanText, currentSentence.translation,
+                        isHeroWidget = false
                     )
                     
                     // Set up action buttons
@@ -167,11 +168,12 @@ class BookmarksWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_bookmarks_translation, "Save sentences to see them here")
         views.setTextViewText(R.id.widget_bookmarks_topic, "")
         
-        // Apply text customizations to empty state
-        WidgetCustomizationHelper.applyTextCustomizations(
+        // Apply automatic text customizations to empty state
+        WidgetCustomizationHelper.applyAutoTextCustomizations(
             views, customization,
             R.id.widget_bookmarks_german_text, R.id.widget_bookmarks_translation,
-            18f, 14f
+            "No bookmarks yet", "Save sentences to see them here",
+            isHeroWidget = false
         )
     }
     

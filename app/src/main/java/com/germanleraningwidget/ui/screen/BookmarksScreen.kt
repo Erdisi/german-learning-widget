@@ -187,20 +187,11 @@ fun BookmarksScreen(
         if (bookmarkedSentences.isEmpty()) return@remember emptyList()
         
         try {
-            var filtered = bookmarkedSentences
-            
-            // Apply level filter - Optimized: Use contains for better performance
-            if (selectedLevels.isNotEmpty()) {
-                filtered = filtered.filter { sentence -> 
-                    sentence.level in selectedLevels
-                }
-            }
-            
-            // Apply topic filter - Optimized: Use contains for better performance
-            if (selectedTopics.isNotEmpty()) {
-                filtered = filtered.filter { sentence -> 
-                    sentence.topic in selectedTopics
-                }
+            // Single optimized filter operation - combines level and topic filtering
+            val filtered = bookmarkedSentences.filter { sentence ->
+                val levelMatch = selectedLevels.isEmpty() || sentence.level in selectedLevels
+                val topicMatch = selectedTopics.isEmpty() || sentence.topic in selectedTopics
+                levelMatch && topicMatch
             }
             
             // Apply sorting with optimized logic - Fixed: Null safety
