@@ -1,5 +1,7 @@
 package com.germanleraningwidget.ui.screen
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
@@ -241,8 +243,35 @@ fun SettingsScreen(
                         subtitle = "Get help and send feedback",
                         icon = Icons.Filled.Support,
                         onClick = {
-                            // Support system will be implemented in future versions
-                            successMessage = "Support options coming soon"
+                            try {
+                                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                    data = Uri.parse("mailto:erdisdriza@gmail.com")
+                                    putExtra(Intent.EXTRA_SUBJECT, "German Learning Widget - Support Request")
+                                    putExtra(Intent.EXTRA_TEXT, "Hi!\n\nI need help with the German Learning Widget app.\n\n")
+                                }
+                                context.startActivity(intent)
+                                successMessage = "Opening email composer..."
+                            } catch (e: Exception) {
+                                successMessage = "No email app found. Please email erdisdriza@gmail.com"
+                            }
+                        },
+                        showArrow = true
+                    )
+                    
+                    SettingsItem(
+                        title = "Buy me a coffee",
+                        subtitle = "Support the development",
+                        icon = Icons.Filled.LocalCafe,
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    data = Uri.parse("https://buymeacoffee.com/driza")
+                                }
+                                context.startActivity(intent)
+                                successMessage = "Opening Buy me a coffee..."
+                            } catch (e: Exception) {
+                                successMessage = "Could not open browser: ${e.message}"
+                            }
                         },
                         showArrow = true
                     )
