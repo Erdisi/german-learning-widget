@@ -13,13 +13,14 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="12dp"
+        android:baselineAligned="false">
         
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="⭐ Hero Bookmarks"
+            android:text="@string/widget_hero_title"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold"
@@ -29,7 +30,7 @@
             android:id="@+id/widget_hero_counter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="1/5"
+            android:text="@string/widget_hero_counter_placeholder"
             android:textColor="#B3FFFFFF"
             android:textSize="14sp"
             android:fontFamily="sans-serif-medium" />
@@ -43,7 +44,8 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp"
-        android:visibility="visible">
+        android:visibility="visible"
+        android:baselineAligned="false">
 
         <!-- Previous Preview -->
         <TextView
@@ -51,7 +53,7 @@
             android:layout_width="0dp"
             android:layout_height="32dp"
             android:layout_weight="1"
-            android:text="Previous..."
+            android:text="@string/widget_hero_previous_text"
             android:textColor="#99FFFFFF"
             android:textSize="11sp"
             android:fontFamily="sans-serif"
@@ -66,7 +68,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:text="●●●"
+            android:text="@string/widget_hero_dots_placeholder"
             android:textColor="#80FFFFFF"
             android:textSize="12sp"
             android:gravity="center"
@@ -78,7 +80,7 @@
             android:layout_width="0dp"
             android:layout_height="32dp"
             android:layout_weight="1"
-            android:text="Next..."
+            android:text="@string/widget_hero_next_text"
             android:textColor="#99FFFFFF"
             android:textSize="11sp"
             android:fontFamily="sans-serif"
@@ -107,7 +109,7 @@
             android:id="@+id/widget_hero_german_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Guten Morgen, wie geht es Ihnen heute?"
+            android:text="@string/widget_demo_german_long"
             android:textColor="#FFFFFF"
             android:textSize="22sp"
             android:textStyle="bold"
@@ -122,7 +124,7 @@
             android:id="@+id/widget_hero_translation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Good morning, how are you today?"
+            android:text="@string/widget_demo_english_long"
             android:textColor="#E6FFFFFF"
             android:textSize="16sp"
             android:fontFamily="sans-serif"
@@ -136,7 +138,7 @@
             android:id="@+id/widget_hero_topic"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Greetings"
+            android:text="@string/widget_demo_topic_greetings"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:fontFamily="sans-serif-medium"
@@ -153,7 +155,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:baselineAligned="false">
 
         <!-- Navigation Buttons -->
         <LinearLayout
@@ -162,7 +165,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="horizontal"
-            android:gravity="start">
+            android:gravity="start"
+            android:baselineAligned="false">
 
             <!-- Previous Button -->
             <ImageButton
@@ -171,7 +175,7 @@
                 android:layout_height="40dp"
                 android:src="@drawable/ic_arrow_back"
                 android:background="@drawable/widget_hero_button_background"
-                android:contentDescription="Previous bookmark"
+                android:contentDescription="@string/previous_bookmark_button_description"
                 android:scaleType="centerInside"
                 android:layout_marginEnd="8dp" />
 
@@ -182,7 +186,7 @@
                 android:layout_height="40dp"
                 android:src="@drawable/ic_arrow_forward"
                 android:background="@drawable/widget_hero_button_background"
-                android:contentDescription="Next bookmark"
+                android:contentDescription="@string/next_bookmark_button_description"
                 android:scaleType="centerInside" />
 
         </LinearLayout>
@@ -201,7 +205,7 @@
                 android:layout_height="44dp"
                 android:src="@drawable/ic_bookmark_filled"
                 android:background="@drawable/widget_hero_remove_button_background"
-                android:contentDescription="Remove bookmark"
+                android:contentDescription="@string/remove_bookmark_button_description"
                 android:scaleType="centerInside" />
 
         </LinearLayout>
@@ -222,7 +226,7 @@
             android:id="@+id/widget_hero_empty_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="No bookmarks yet"
+            android:text="@string/widget_hero_empty_title"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -233,7 +237,7 @@
             android:id="@+id/widget_hero_empty_subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Save sentences from the learning widget"
+            android:text="@string/widget_hero_empty_subtitle"
             android:textColor="#B3FFFFFF"
             android:textSize="14sp"
             android:fontFamily="sans-serif"

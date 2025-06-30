@@ -26,6 +26,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -418,7 +419,7 @@ private fun OptimizedLearningProfileCard(
                 
                 OptimizedLearningStatRow(
                     label = stringResource(R.string.topics_label),
-                    value = stringResource(R.string.topics_selected, userPreferences.selectedTopics.size),
+                    value = pluralStringResource(R.plurals.topics_selected, userPreferences.selectedTopics.size, userPreferences.selectedTopics.size),
                     isLoading = false
                 )
                 
@@ -426,7 +427,7 @@ private fun OptimizedLearningProfileCard(
                 
                 OptimizedLearningStatRow(
                     label = "Bookmarks",
-                    value = if (isLoading) "Loading..." else stringResource(R.string.bookmarks_count, bookmarkedCount),
+                    value = if (isLoading) "Loading..." else pluralStringResource(R.plurals.bookmarks_count, bookmarkedCount, bookmarkedCount),
                     isLoading = isLoading
                 )
             }

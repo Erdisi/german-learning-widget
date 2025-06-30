@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.core.content.edit
 import androidx.work.*
 
 import com.germanleraningwidget.data.model.GermanSentence
@@ -344,7 +345,9 @@ class SentenceDeliveryWorker(
         // Note: In a real implementation, you'd want to persist this data
         // For now, we'll use SharedPreferences or a similar mechanism
         val prefs = applicationContext.getSharedPreferences("widget_updates", Context.MODE_PRIVATE)
-        prefs.edit().putLong("${LAST_UPDATE_KEY_PREFIX}${widgetType.key}", timestamp).apply()
+        prefs.edit {
+            putLong("${LAST_UPDATE_KEY_PREFIX}${widgetType.key}", timestamp)
+        }
     }
     
     /**

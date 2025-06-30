@@ -13,7 +13,10 @@
     <string name="level_label">Level</string>
     <string name="topics_label">Topics</string>
 
-    <string name="topics_selected">%d selected</string>
+    <plurals name="topics_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
     <string name="edit_preferences">Learning Preferences</string>
     <string name="add_your_widget">Add Your Widget</string>
     <string name="setup_button">Setup</string>
@@ -21,9 +24,7 @@
     <string name="setup_instructions">1. Long-press your home screen\n2. Select \'Widgets\'\n3. Find \'German Learning Widget\'\n4. Start learning with daily sentences!</string>
     
     <!-- Widget preview strings -->
-    <string name="main_learning_widget">Main Learning Widget</string>
-    <string name="bookmarks_widget">Bookmarks</string>
-    <string name="hero_bookmarks_widget">Hero Bookmarks</string>
+
     <string name="demo_german_greeting">Guten Morgen!</string>
     <string name="demo_english_greeting">Good morning!</string>
     <string name="demo_german_question">Wie geht es dir?</string>
@@ -33,33 +34,45 @@
     <string name="demo_topic_greetings">Greetings</string>
     <string name="demo_topic_daily_life">Daily Life</string>
     <string name="demo_topic_weather">Weather</string>
-    <string name="bookmarks_count">%d saved</string>
+    <plurals name="bookmarks_count">
+        <item quantity="one">%d saved</item>
+        <item quantity="other">%d saved</item>
+    </plurals>
     
     <!-- Widget customization strings -->
-    <string name="sentences_per_day_title">Sentences per Day</string>
-    <string name="sentences_per_day_description">Control how often your widget shows new sentences throughout the day</string>
-    <string name="sentences_per_day_current_selection">%d sentences per day</string>
-    <string name="sentences_per_day_update_interval">Updates every %d minutes</string>
-    <string name="sentences_per_day_select_label">Select sentences per day: %d</string>
-    <string name="sentences_per_day_min_label">%d per day</string>
-    <string name="sentences_per_day_max_label">%d per day</string>
-    <string name="sentences_per_day_quick_select">Quick Select:</string>
-    <string name="sentences_per_day_quick_button">%d/day</string>
+
+
+
+
+    
+    <!-- Widget text strings -->
+    <string name="widget_bookmarks_title">📚 Bookmarks</string>
+    <string name="widget_bookmarks_counter_placeholder">1/5</string>
+    <string name="next_bookmark_description">Next bookmark</string>
+    <string name="remove_bookmark_description">Remove bookmark</string>
 
     
     <!-- Content descriptions for accessibility -->
-    <string name="welcome_icon_description">Welcome icon</string>
-    <string name="widgets_icon_description">Widgets icon</string>
-    <string name="profile_icon_description">User profile icon</string>
-    <string name="add_widget_icon_description">Add widget icon</string>
-    <string name="setup_arrow_description">Setup arrow</string>
-    <string name="main_widget_icon_description">Main widget icon</string>
-    <string name="bookmarks_icon_description">Bookmarks icon</string>
-    <string name="hero_widget_icon_description">Hero widget carousel icon</string>
-    <string name="bookmark_button_description">Bookmark sentence</string>
-    <string name="navigation_arrow_description">Navigation arrow</string>
-    <string name="preview_dots_description">Preview indicator dots</string>
-    <string name="sentences_per_day_icon_description">Sentences per day icon</string>
-    <string name="sentences_per_day_slider_description">Sentences per day slider</string>
-    <string name="sentences_per_day_info_icon_description">Information icon</string>
+
+    
+    <!-- Widget text strings for hardcoded text fixes -->
+    <string name="widget_hero_title">⭐ Hero Bookmarks</string>
+    <string name="widget_hero_counter_placeholder">1/5</string>
+    <string name="widget_hero_previous_text">Previous…</string>
+    <string name="widget_hero_next_text">Next…</string>
+    <string name="widget_hero_dots_placeholder">●●●</string>
+    <string name="widget_main_title">🎓 Learn German</string>
+    <string name="widget_level_placeholder">A1</string>
+    <string name="widget_demo_german_greeting">Guten Morgen!</string>
+    <string name="widget_demo_english_greeting">Good morning!</string>
+    <string name="widget_demo_german_long">Guten Morgen, wie geht es Ihnen heute?</string>
+    <string name="widget_demo_english_long">Good morning, how are you today?</string>
+    <string name="widget_demo_topic_greetings">Greetings</string>
+
+    <string name="widget_hero_empty_title">No bookmarks yet</string>
+    <string name="widget_hero_empty_subtitle">Save sentences from the learning widget</string>
+    <string name="save_sentence_description">Save sentence</string>
+    <string name="next_bookmark_button_description">Next bookmark</string>
+    <string name="previous_bookmark_button_description">Previous bookmark</string>
+    <string name="remove_bookmark_button_description">Remove bookmark</string>
 </resources>

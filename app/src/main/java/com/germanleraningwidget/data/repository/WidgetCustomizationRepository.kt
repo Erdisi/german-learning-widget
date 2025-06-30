@@ -39,6 +39,7 @@ class WidgetCustomizationRepository(
         private const val TAG = "WidgetCustomizationRepo"
         
         // Singleton instance
+        @Suppress("StaticFieldLeak") // Safe: Uses application context only, not activity context
         @Volatile
         private var INSTANCE: WidgetCustomizationRepository? = null
         

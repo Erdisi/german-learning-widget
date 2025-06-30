@@ -2,6 +2,7 @@ package com.germanleraningwidget.ui.screen
 
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
@@ -245,7 +246,7 @@ fun SettingsScreen(
                         onClick = {
                             try {
                                 val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = Uri.parse("mailto:erdisdriza@gmail.com")
+                                    data = "mailto:erdisdriza@gmail.com".toUri()
                                     putExtra(Intent.EXTRA_SUBJECT, "German Learning Widget - Support Request")
                                     putExtra(Intent.EXTRA_TEXT, "Hi!\n\nI need help with the German Learning Widget app.\n\n")
                                 }
@@ -265,7 +266,7 @@ fun SettingsScreen(
                         onClick = {
                             try {
                                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    data = Uri.parse("https://buymeacoffee.com/driza")
+                                    data = "https://buymeacoffee.com/driza".toUri()
                                 }
                                 context.startActivity(intent)
                                 successMessage = "Opening Buy me a coffee..."

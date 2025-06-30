@@ -19,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="📚 Bookmarks"
+            android:text="@string/widget_bookmarks_title"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -29,7 +29,7 @@
             android:id="@+id/widget_bookmarks_counter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="1/5"
+            android:text="@string/widget_bookmarks_counter_placeholder"
             android:textColor="#B3FFFFFF"
             android:textSize="12sp"
             android:fontFamily="sans-serif" />
@@ -41,7 +41,7 @@
         android:id="@+id/widget_bookmarks_german_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Guten Morgen!"
+        android:text="@string/demo_german_greeting"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold"
@@ -54,7 +54,7 @@
         android:id="@+id/widget_bookmarks_translation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Good morning!"
+        android:text="@string/demo_english_greeting"
         android:textColor="#E6FFFFFF"
         android:textSize="14sp"
         android:fontFamily="sans-serif"
@@ -74,7 +74,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Greetings"
+            android:text="@string/demo_topic_greetings"
             android:textColor="#B3FFFFFF"
             android:textSize="12sp"
             android:fontFamily="sans-serif"
@@ -96,7 +96,7 @@
                 android:layout_height="36dp"
                 android:src="@drawable/ic_next_arrow"
                 android:background="@drawable/widget_button_background"
-                android:contentDescription="Next bookmark"
+                android:contentDescription="@string/next_bookmark_description"
                 android:scaleType="centerInside"
                 android:layout_marginEnd="8dp" />
             
@@ -107,7 +107,7 @@
                 android:layout_height="36dp"
                 android:src="@drawable/ic_bookmark_filled"
                 android:background="@drawable/widget_button_background"
-                android:contentDescription="Remove bookmark"
+                android:contentDescription="@string/remove_bookmark_description"
                 android:scaleType="centerInside" />
         
         </LinearLayout>

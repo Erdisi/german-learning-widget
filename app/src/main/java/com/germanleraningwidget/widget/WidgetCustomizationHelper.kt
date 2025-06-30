@@ -3,6 +3,7 @@ package com.germanleraningwidget.widget
 import android.content.Context
 import android.graphics.Color
 import android.util.TypedValue
+import androidx.core.graphics.toColorInt
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.toArgb
 import com.germanleraningwidget.data.model.WidgetCustomization
@@ -73,7 +74,7 @@ object WidgetCustomizationHelper {
         } catch (e: Exception) {
             android.util.Log.w("WidgetCustomizationHelper", "Could not apply background color: ${e.message}")
             // Fallback to default color
-            views.setInt(containerViewId, "setBackgroundColor", Color.parseColor("#764ba2"))
+            views.setInt(containerViewId, "setBackgroundColor", "#764ba2".toColorInt())
         }
     }
     

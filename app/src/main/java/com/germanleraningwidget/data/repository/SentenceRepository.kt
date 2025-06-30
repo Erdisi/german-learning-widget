@@ -50,6 +50,7 @@ class SentenceRepository private constructor(
         private const val TAG = "SentenceRepository"
         private const val BOOKMARKED_IDS_KEY_NAME = "bookmarked_sentence_ids"
         
+        @Suppress("StaticFieldLeak") // Safe: Uses application context only, not activity context
         @Volatile
         private var INSTANCE: SentenceRepository? = null
         

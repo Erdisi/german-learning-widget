@@ -43,6 +43,7 @@ class AppSettingsRepository(
         private const val TAG = "AppSettingsRepo"
         
         // Singleton instance
+        @Suppress("StaticFieldLeak") // Safe: Uses application context only, not activity context
         @Volatile
         private var INSTANCE: AppSettingsRepository? = null
         

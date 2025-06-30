@@ -33,7 +33,6 @@
     <color name="md_theme_dark_onSurface">#E6E1E5</color>
     <color name="md_theme_dark_surfaceVariant">#2B2930</color>
     <color name="md_theme_dark_onSurfaceVariant">#C4C6D0</color>
-    <color name="md_theme_dark_surfaceTint">#B8C5FF</color>
     
     <!-- Additional Surface Colors -->
     <color name="md_theme_dark_inverseSurface">#E6E1E5</color>
@@ -44,10 +43,6 @@
     <color name="md_theme_dark_outline">#90909A</color>
     <color name="md_theme_dark_outlineVariant">#46464F</color>
     
-    <!-- Shadow and Scrim -->
-    <color name="md_theme_dark_shadow">#000000</color>
-    <color name="md_theme_dark_scrim">#000000</color>
-    
     <!-- Surface Container Colors -->
     <color name="md_theme_dark_surfaceContainer">#1F1E22</color>
     <color name="md_theme_dark_surfaceContainerHigh">#292831</color>
@@ -56,8 +51,5 @@
     <color name="md_theme_dark_surfaceContainerLowest">#0F0E13</color>
     
     <!-- Widget specific colors for dark theme -->
-    <color name="widget_text_primary">#FFFFFF</color>
-    <color name="widget_text_secondary">#E6FFFFFF</color>
-    <color name="widget_text_tertiary">#B3FFFFFF</color>
-    <color name="widget_overlay">#33FFFFFF</color>
+
 </resources> 

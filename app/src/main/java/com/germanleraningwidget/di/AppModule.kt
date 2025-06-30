@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
  * - Easy testing with dependency substitution
  * - Clear separation of concerns
  */
+@Suppress("StaticFieldLeak") // Safe: Uses application context only, not activity context
 object AppModule {
     
     // Core dispatchers
