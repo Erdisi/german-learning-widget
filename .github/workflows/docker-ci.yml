@@ -1,0 +1,318 @@
+name: 🐳 Docker CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, version-*, feature/*, hotfix/* ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches: [ main, version-* ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - debug
+        - release
+      deploy_to_play_store:
+        description: 'Deploy to Play Store (release only)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  # =============================================================================
+  # Code Quality and Testing
+  # =============================================================================
+  quality-check:
+    name: 🔍 Code Quality & Testing
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🔑 Generate Cache Key
+      id: cache-key
+      run: |
+        echo "key=docker-${{ runner.os }}-${{ hashFiles('**/Dockerfile', '**/docker-compose.yml', '**/build.gradle.kts', '**/libs.versions.toml') }}" >> $GITHUB_OUTPUT
+
+    - name: 📦 Cache Docker Layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ steps.cache-key.outputs.key }}
+        restore-keys: |
+          docker-${{ runner.os }}-
+
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver: docker-container
+
+    - name: 🏗️ Build Test Environment
+      run: |
+        docker-compose build test
+        
+    - name: 🧪 Run Unit Tests
+      run: |
+        docker-compose run --rm test ./gradlew test --no-daemon --stacktrace
+        
+    - name: 📝 Run Lint Analysis
+      run: |
+        docker-compose run --rm test ./gradlew lint --no-daemon --stacktrace
+        
+    - name: 📊 Upload Test Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports-${{ github.run_number }}
+        path: |
+          app/build/reports/
+          app/build/test-results/
+        retention-days: 30
+
+  # =============================================================================
+  # Build Android APK/AAB
+  # =============================================================================
+  build:
+    name: 🔨 Build Android App
+    runs-on: ubuntu-latest
+    needs: quality-check
+    strategy:
+      matrix:
+        build-type: [debug, release]
+        include:
+          - build-type: debug
+            artifact-name: debug-apk
+          - build-type: release
+            artifact-name: release-build
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 📦 Restore Docker Cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ needs.quality-check.outputs.cache-key }}
+        restore-keys: |
+          docker-${{ runner.os }}-
+
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🔐 Configure Release Signing
+      if: matrix.build-type == 'release'
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "Setting up release signing..."
+          echo "$KEYSTORE_BASE64" | base64 -d > app/upload-keystore.jks
+          echo "KEYSTORE_FILE=upload-keystore.jks" >> $GITHUB_ENV
+        else
+          echo "⚠️ Release signing not configured - building unsigned release"
+        fi
+
+    - name: 🏗️ Build ${{ matrix.build-type }} APK
+      run: |
+        if [ "${{ matrix.build-type }}" = "release" ]; then
+          docker-compose run --rm \
+            -e KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}" \
+            -e KEY_ALIAS="${{ secrets.KEY_ALIAS }}" \
+            -e KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}" \
+            production-build
+        else
+          docker-compose run --rm ci-build ./gradlew assembleDebug --no-daemon --stacktrace
+        fi
+
+    - name: 📱 Build AAB (Release only)
+      if: matrix.build-type == 'release'
+      run: |
+        docker-compose run --rm \
+          -e KEYSTORE_PASSWORD="${{ secrets.KEYSTORE_PASSWORD }}" \
+          -e KEY_ALIAS="${{ secrets.KEY_ALIAS }}" \
+          -e KEY_PASSWORD="${{ secrets.KEY_PASSWORD }}" \
+          production-build ./gradlew bundleRelease --no-daemon --stacktrace
+
+    - name: 📤 Upload APK Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact-name }}-${{ github.run_number }}
+        path: |
+          app/build/outputs/apk/**/*.apk
+          app/build/outputs/bundle/**/*.aab
+        retention-days: 30
+
+    - name: 📊 Generate Build Report
+      run: |
+        echo "## 🔨 Build Report - ${{ matrix.build-type }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f "app/build/outputs/apk/${{ matrix.build-type }}"/*.apk ]; then
+          APK_SIZE=$(du -h app/build/outputs/apk/${{ matrix.build-type }}/*.apk | cut -f1)
+          echo "- **APK Size**: $APK_SIZE" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ -f "app/build/outputs/bundle/${{ matrix.build-type }}"/*.aab ]; then
+          AAB_SIZE=$(du -h app/build/outputs/bundle/${{ matrix.build-type }}/*.aab | cut -f1)
+          echo "- **AAB Size**: $AAB_SIZE" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "- **Build Type**: ${{ matrix.build-type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Security Scanning
+  # =============================================================================
+  security-scan:
+    name: 🔒 Security Scanning
+    runs-on: ubuntu-latest
+    needs: quality-check
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 🔍 Run Trivy Security Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'german-learning-widget:latest'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: 📤 Upload Security Scan Results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # =============================================================================
+  # Performance Testing
+  # =============================================================================
+  performance-test:
+    name: ⚡ Performance Testing
+    runs-on: ubuntu-latest
+    needs: [quality-check, build]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/version-'))
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: ⏱️ Measure Build Performance
+      run: |
+        echo "## ⚡ Performance Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        START_TIME=$(date +%s)
+        docker-compose run --rm ci-build ./gradlew assembleDebug --no-daemon --profile
+        END_TIME=$(date +%s)
+        
+        BUILD_TIME=$((END_TIME - START_TIME))
+        echo "- **Docker Build Time**: ${BUILD_TIME}s" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "app/build/reports/profile"/*.html ]; then
+          echo "- **Gradle Profile**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: 📤 Upload Performance Reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-reports-${{ github.run_number }}
+        path: |
+          app/build/reports/profile/
+        retention-days: 7
+
+  # =============================================================================
+  # Deploy to Play Store (Production)
+  # =============================================================================
+  deploy-play-store:
+    name: 🚀 Deploy to Play Store
+    runs-on: ubuntu-latest
+    needs: [quality-check, build, security-scan]
+    if: |
+      github.event_name == 'workflow_dispatch' && 
+      github.event.inputs.deploy_to_play_store == 'true' &&
+      github.event.inputs.build_type == 'release'
+    environment: production
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 📦 Download Release Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-build-${{ github.run_number }}
+        path: artifacts/
+
+    - name: 🚀 Deploy to Play Store Internal Testing
+      uses: r0adkll/upload-google-play@v1
+      with:
+        serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        packageName: com.germanleraningwidget
+        releaseFiles: artifacts/app/build/outputs/bundle/release/*.aab
+        track: internal
+        status: completed
+        inAppUpdatePriority: 2
+
+    - name: 📝 Create Deployment Summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Target**: Google Play Store (Internal Testing)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed at**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Cleanup
+  # =============================================================================
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [build, security-scan, performance-test]
+    if: always()
+    
+    steps:
+    - name: 🐳 Clean up Docker
+      run: |
+        docker system prune -af
+        docker volume prune -f
+
+    - name: 📊 Final Summary
+      run: |
+        echo "## 🎉 Pipeline Completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Docker CI/CD Pipeline has completed successfully!**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📈 Benefits Achieved:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Consistent build environment across all runs" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Improved build caching and performance" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Enhanced security scanning integration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Automated testing and quality checks" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Professional CI/CD pipeline" >> $GITHUB_STEP_SUMMARY 

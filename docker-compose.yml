@@ -1,0 +1,153 @@
+# German Learning Widget - Docker Compose Configuration
+# Comprehensive setup for development, CI/CD, and testing environments
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Development Environment
+  # =============================================================================
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: german-widget-dev
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+      - android-sdk-cache:/opt/android-sdk
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_HOME=/opt/android-sdk
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    networks:
+      - german-widget-network
+    labels:
+      - "project=german-learning-widget"
+      - "environment=development"
+
+  # =============================================================================
+  # CI/CD Build Environment
+  # =============================================================================
+  ci-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ci-build
+      args:
+        BUILD_TYPE: debug
+    container_name: german-widget-ci
+    volumes:
+      - gradle-cache:/root/.gradle
+      - ./app/build/outputs:/output
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_HOME=/opt/android-sdk
+    networks:
+      - german-widget-network
+    labels:
+      - "project=german-learning-widget"
+      - "environment=ci"
+
+  # =============================================================================
+  # Production Build Environment
+  # =============================================================================
+  production-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        BUILD_TYPE: release
+        KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD:-}
+        KEY_ALIAS: ${KEY_ALIAS:-}
+        KEY_PASSWORD: ${KEY_PASSWORD:-}
+    container_name: german-widget-production
+    volumes:
+      - gradle-cache:/root/.gradle
+      - ./app/build/outputs:/output
+      - ./artifacts:/artifacts
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_HOME=/opt/android-sdk
+      - BUILD_TYPE=release
+    networks:
+      - german-widget-network
+    labels:
+      - "project=german-learning-widget"
+      - "environment=production"
+
+  # =============================================================================
+  # Testing Environment
+  # =============================================================================
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: ci-build
+    container_name: german-widget-test
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+      - ./app/build/reports:/reports
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false
+      - ANDROID_SDK_ROOT=/opt/android-sdk
+      - ANDROID_HOME=/opt/android-sdk
+    command: ["./gradlew", "test", "lint", "--no-daemon"]
+    networks:
+      - german-widget-network
+    labels:
+      - "project=german-learning-widget"
+      - "environment=testing"
+
+  # =============================================================================
+  # Gradle Build Cache Service (for faster builds)
+  # =============================================================================
+  gradle-cache-server:
+    image: gradle:8.13-jdk17
+    container_name: german-widget-gradle-cache
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      - gradle-cache:/home/gradle/.gradle
+    networks:
+      - german-widget-network
+    labels:
+      - "project=german-learning-widget"
+      - "service=cache"
+
+# =============================================================================
+# Volumes for Persistent Data
+# =============================================================================
+volumes:
+  gradle-cache:
+    driver: local
+    labels:
+      - "project=german-learning-widget"
+      - "type=cache"
+  
+  android-sdk-cache:
+    driver: local
+    labels:
+      - "project=german-learning-widget"
+      - "type=sdk"
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  german-widget-network:
+    driver: bridge
+    labels:
+      - "project=german-learning-widget"
+
+# =============================================================================
+# Extension for Development Override
+# =============================================================================
+# Create docker-compose.override.yml for local development customizations 

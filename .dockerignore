@@ -1,0 +1,164 @@
+# German Learning Widget - Docker Build Context Optimization
+# This file excludes unnecessary files from Docker build context
+
+# =============================================================================
+# IDE and Editor Files
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Version Control
+# =============================================================================
+.git/
+.gitignore
+.gitattributes
+.github/
+*.orig
+
+# =============================================================================
+# Build Outputs and Caches
+# =============================================================================
+# Android Build Outputs
+app/build/
+build/
+.gradle/
+*/build/
+*/*/build/
+
+# Gradle Cache
+.gradle/
+gradle-cache/
+
+# Local Properties
+local.properties
+
+# =============================================================================
+# Android Development
+# =============================================================================
+# Generated files
+*.iml
+*.hprof
+*.dex
+*.ap_
+*.class
+
+# Keystore files (security)
+*.jks  
+*.keystore
+key.properties
+
+# R8/ProGuard
+proguard/
+app/proguard/
+
+# =============================================================================
+# Testing and Reports
+# =============================================================================
+# Test Results
+app/build/reports/
+app/build/test-results/
+coverage/
+jacoco/
+
+# =============================================================================
+# Documentation and Markdown
+# =============================================================================
+*.md
+!README.md
+docs/
+screenshots/
+
+# =============================================================================
+# Temporary and Log Files
+# =============================================================================
+*.log
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# =============================================================================
+# Node.js (if any)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =============================================================================
+# OS Generated Files
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.Trash-*
+
+# =============================================================================
+# Docker Related
+# =============================================================================
+# Docker files (to prevent recursive copying)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Artifacts directory
+artifacts/
+
+# =============================================================================
+# Backup and Archive Files
+# =============================================================================
+*.backup
+*.bak
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# =============================================================================
+# Large Media Files (if any)
+# =============================================================================
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+
+# =============================================================================
+# Sensitive Information
+# =============================================================================
+# API Keys and Secrets
+secrets/
+*.env
+.env.*
+config/secrets.yaml
+
+# =============================================================================
+# Performance Optimization
+# =============================================================================
+# Include only necessary files for build:
+# ✅ Source code (app/src/)
+# ✅ Gradle configuration (*.gradle.kts, gradle.properties)
+# ✅ Resource files (app/src/main/res/)
+# ✅ Manifest (AndroidManifest.xml)
+# ✅ ProGuard rules (proguard-rules.pro)
+
+# Exclude everything else to minimize build context 

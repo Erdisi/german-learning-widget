@@ -109,3 +109,20 @@ logs/
 # Gradle Wrapper
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
+
+# Docker and Containerization
+.dockerignore.bak
+docker-compose.override.yml
+.env
+.env.*
+artifacts/
+docker-volumes/
+
+# Keystore files (for release builds)
+*.jks
+*.keystore
+key.properties
+upload-keystore.jks
+
+# Docker build context optimization
+.docker/
