@@ -147,8 +147,15 @@ data class UserPreferences(
      */
     fun withSafeDefaults(): UserPreferences {
         val safeLevels = if (selectedGermanLevels.isEmpty() || selectedGermanLevels.any { it.isBlank() }) {
-            // Only apply A1 fallback if onboarding is completed (for data corruption recovery)
-            if (isOnboardingCompleted) setOf("A1") else emptySet()
+            // Keep user's choice - don't force A1 unless it's truly empty and corrupted
+            val validLevels = selectedGermanLevels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+            if (validLevels.isEmpty()) {
+                // Only apply A1 fallback in extreme data corruption scenarios
+                Log.w("UserPreferences", "Data corruption: empty levels but withSafeDefaults called. Using A1 fallback.")
+                if (isOnboardingCompleted) setOf("A1") else emptySet()
+            } else {
+                validLevels
+            }
         } else {
             selectedGermanLevels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
         }

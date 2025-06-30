@@ -9,7 +9,6 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.germanleraningwidget.data.model.GermanLevel
 import com.germanleraningwidget.data.model.GermanSentence
-import com.germanleraningwidget.data.model.matchesCriteria
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -393,38 +392,35 @@ class SentenceRepository private constructor(
      * @return Random sentence or null if no matches found
      */
     fun getRandomSentenceForUser(userPreferences: com.germanleraningwidget.data.model.UserPreferences): GermanSentence? {
-        return if (userPreferences.hasMultipleLevels) {
-            // Use multi-level selection with user's level weights
-            getRandomSentenceFromLevels(
-                levels = userPreferences.selectedGermanLevels,
-                topics = userPreferences.selectedTopics.toList(),
-                levelWeights = userPreferences.getLevelWeights()
-            )
-        } else {
-            // Get sentence using multi-level approach with fallback
-            val sentence = getRandomSentenceFromLevels(
-                levels = userPreferences.selectedGermanLevels,
-                topics = userPreferences.selectedTopics.toList()
-            )
-            
-            if (sentence != null) {
-                Log.d(TAG, "Found sentence for multi-level delivery: ${sentence.germanText}")
-                return sentence
-            }
-            
-            // Fallback to primary level only if multi-level fails
-            val fallbackSentence = getRandomSentence(
-                level = userPreferences.primaryGermanLevel,
-                topics = userPreferences.selectedTopics.toList()
-            )
-            
-            if (fallbackSentence != null) {
-                Log.d(TAG, "Found sentence for primary level delivery: ${fallbackSentence.germanText}")
-                return fallbackSentence
-            }
-            
-            null
+        // Enhanced logging for debugging widget level issues
+        Log.d(TAG, "Getting sentence for user preferences: levels=${userPreferences.selectedGermanLevels}, primary=${userPreferences.primaryGermanLevel}, topics=${userPreferences.selectedTopics}")
+        
+        // Validate user preferences first
+        if (userPreferences.selectedGermanLevels.isEmpty()) {
+            Log.w(TAG, "No German levels selected in user preferences")
+            return null
         }
+        
+        if (userPreferences.selectedTopics.isEmpty()) {
+            Log.w(TAG, "No topics selected in user preferences")
+            return null
+        }
+        
+        // Always use multi-level selection - respects user's exact preferences
+        // NO FALLBACKS - only use what the user has explicitly selected
+        val sentence = getRandomSentenceFromLevels(
+            levels = userPreferences.selectedGermanLevels,
+            topics = userPreferences.selectedTopics.toList(),
+            levelWeights = userPreferences.getLevelWeights()
+        )
+        
+        if (sentence != null) {
+            Log.d(TAG, "Found sentence for user preferences: level=${sentence.level}, text='${sentence.germanText}'")
+        } else {
+            Log.w(TAG, "No sentences found matching user preferences: levels=${userPreferences.selectedGermanLevels}, topics=${userPreferences.selectedTopics}")
+        }
+        
+        return sentence
     }
     
     /**
@@ -607,10 +603,23 @@ class SentenceRepository private constructor(
     /**
      * Get all bookmarked sentences.
      * Returns a snapshot of current bookmarked sentences.
+     * This method is guaranteed to never return null.
      */
     fun getSavedSentences(): List<GermanSentence> {
-        val savedIds = _bookmarkedIds.value
-        return SAMPLE_SENTENCES.filter { it.id in savedIds }
+        return try {
+            val savedIds = _bookmarkedIds.value ?: emptySet()
+            SAMPLE_SENTENCES.filter { sentence ->
+                try {
+                    sentence.id in savedIds
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error checking if sentence ${sentence.id} is saved", e)
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting saved sentences", e)
+            emptyList()
+        }
     }
     
     /**

@@ -212,15 +212,15 @@ class SentenceDeliveryWorker(
             Log.d(TAG, "Loaded preferences: levels=${preferences.selectedGermanLevels}, primary=${preferences.primaryGermanLevel}, topics=${preferences.selectedTopics.size}")
             Log.d(TAG, "Widget frequencies: Main=${customizations.mainWidget.sentencesPerDay}/day, Bookmarks=${customizations.bookmarksWidget.sentencesPerDay}/day, Hero=${customizations.heroWidget.sentencesPerDay}/day")
             
-            // Validate preferences
+            // Validate preferences - don't proceed if no proper user setup
             if (preferences.selectedGermanLevels.isEmpty()) {
-                Log.w(TAG, "No German levels selected, using default A1")
-                return Result.failure(workDataOf("error" to "No German levels selected"))
+                Log.w(TAG, "No German levels selected. User needs to complete learning preferences setup.")
+                return Result.failure(workDataOf("error" to "No German levels selected - user preferences incomplete"))
             }
             
             if (preferences.selectedTopics.isEmpty()) {
-                Log.w(TAG, "No topics selected, using default")
-                return Result.failure(workDataOf("error" to "No topics selected"))
+                Log.w(TAG, "No topics selected. User needs to complete learning preferences setup.")
+                return Result.failure(workDataOf("error" to "No topics selected - user preferences incomplete"))
             }
             
             // Update widgets that are due for updates
@@ -362,7 +362,7 @@ class SentenceDeliveryWorker(
                 val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
                 val appWidgetIds = appWidgetManager.getAppWidgetIds(
                     ComponentName(applicationContext, config.widgetClass)
-                )
+                ) ?: intArrayOf() // Handle potential null return
                 
                 Log.d(TAG, "Found ${appWidgetIds.size} ${config.widgetType.displayName} widgets to update")
                 

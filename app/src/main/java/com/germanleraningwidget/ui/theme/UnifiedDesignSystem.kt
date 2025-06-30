@@ -154,4 +154,4 @@ fun SurfaceVariantUnifiedCard(
  * Extension function for applying unified card modifier
  */
 fun Modifier.unifiedCard(backgroundColor: Color? = null): Modifier = 
-    UnifiedDesign.run { unifiedCard(backgroundColor) } 
+    UnifiedDesign.run { this@unifiedCard.unifiedCard(backgroundColor) } 

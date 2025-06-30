@@ -102,11 +102,16 @@ class UserPreferencesRepository(
         val primaryLevel = preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL]
         val isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
         
+        // Enhanced logging for debugging widget level issues
+        Log.d(TAG, "Loading preferences: selectedLevels=$selectedLevels, primaryLevel=$primaryLevel, legacyLevel=$legacyGermanLevel, onboarded=$isOnboardingCompleted")
+        
         // Migration logic: if we have legacy data but no new data, migrate
         val (finalSelectedLevels, finalPrimaryLevel) = when {
-            // New format exists - use it
+            // New format exists - use it exactly as stored (respect user's choices)
             !selectedLevels.isNullOrEmpty() && !primaryLevel.isNullOrBlank() -> {
-                Pair(selectedLevels.filter { it.isNotBlank() }.toSet(), primaryLevel)
+                val validLevels = selectedLevels.filter { it.isNotBlank() }.toSet()
+                Log.d(TAG, "Using saved multi-level preferences: levels=$validLevels, primary=$primaryLevel")
+                Pair(validLevels, primaryLevel)
             }
             
             // Legacy format exists - migrate it
@@ -115,27 +120,23 @@ class UserPreferencesRepository(
                 Pair(setOf(legacyGermanLevel), legacyGermanLevel)
             }
             
-            // No data - only use A1 default if onboarding is completed (for data corruption recovery)
+            // No data exists - only for first-time users or true data corruption
             else -> {
                 if (isOnboardingCompleted) {
+                    // This should rarely happen - only if user data was corrupted after onboarding
+                    Log.w(TAG, "Data corruption detected: onboarding completed but no levels found. Using A1 as emergency fallback.")
                     Pair(setOf("A1"), "A1")
                 } else {
+                    // New user hasn't completed onboarding yet
+                    Log.d(TAG, "New user, no preferences set yet")
                     Pair(emptySet(), "")
                 }
             }
         }
         
         return UserPreferences(
-            selectedGermanLevels = if (isOnboardingCompleted) {
-                finalSelectedLevels.ifEmpty { setOf("A1") }
-            } else {
-                finalSelectedLevels
-            },
-            primaryGermanLevel = if (isOnboardingCompleted) {
-                finalPrimaryLevel.takeIf { it.isNotBlank() && it in finalSelectedLevels } ?: "A1"
-            } else {
-                finalPrimaryLevel
-            },
+            selectedGermanLevels = finalSelectedLevels,
+            primaryGermanLevel = finalPrimaryLevel,
             selectedTopics = preferences[PreferencesKeys.SELECTED_TOPICS]?.filter { it.isNotBlank() }?.toSet() ?: setOf("Daily Life"),
             isOnboardingCompleted = isOnboardingCompleted
         )
@@ -300,7 +301,10 @@ class UserPreferencesRepository(
                     prefs[PreferencesKeys.IS_ONBOARDING_COMPLETED] = preferences.isOnboardingCompleted
                 }
                 
-                Log.d(TAG, "Preferences updated successfully")
+                // Notify widgets to update with new preferences
+                notifyWidgetsOfPreferenceChange()
+                
+                Log.d(TAG, "Preferences updated successfully and widgets notified")
                 Result.success(Unit)
                 
             } catch (e: IOException) {
@@ -435,6 +439,47 @@ class UserPreferencesRepository(
         val wasRepaired: Boolean,
         val issues: List<String>
     )
+    
+    /**
+     * Notify all widgets that user preferences have changed.
+     * This ensures widgets update to use new levels, topics, etc.
+     */
+    private fun notifyWidgetsOfPreferenceChange() {
+        try {
+            // Directly call the widget update methods with proper imports
+            com.germanleraningwidget.widget.GermanLearningWidget.updateAllWidgets(context)
+            com.germanleraningwidget.widget.BookmarksWidget.updateAllWidgets(context)
+            com.germanleraningwidget.widget.BookmarksHeroWidget.updateAllWidgets(context)
+            
+            Log.d(TAG, "Successfully notified all widgets of user preference changes")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to notify widgets of preference changes", e)
+            // Fallback: try reflection-based approach
+            notifyWidgetsViaReflection()
+        }
+    }
+    
+    /**
+     * Fallback method to notify widgets via reflection if direct calls fail
+     */
+    private fun notifyWidgetsViaReflection() {
+        val widgetClasses = listOf(
+            "com.germanleraningwidget.widget.GermanLearningWidget",
+            "com.germanleraningwidget.widget.BookmarksWidget", 
+            "com.germanleraningwidget.widget.BookmarksHeroWidget"
+        )
+        
+        widgetClasses.forEach { className ->
+            try {
+                val widgetClass = Class.forName(className)
+                val updateMethod = widgetClass.getMethod("updateAllWidgets", Context::class.java)
+                updateMethod.invoke(null, context)
+                Log.d(TAG, "Successfully notified $className via reflection")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to notify $className via reflection", e)
+            }
+        }
+    }
     
     /**
      * Custom exception for preferences operations

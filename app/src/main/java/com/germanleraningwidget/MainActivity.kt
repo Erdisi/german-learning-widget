@@ -173,13 +173,13 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        Log.d(TAG, "New intent received: ${intent?.getStringExtra(EXTRA_NAVIGATE_TO)}")
+        Log.d(TAG, "New intent received: ${intent.getStringExtra(EXTRA_NAVIGATE_TO)}")
         
         // Handle immediate widget navigation for new intents
-        intent?.getStringExtra(EXTRA_NAVIGATE_TO)?.let { navigationTarget ->
+        intent.getStringExtra(EXTRA_NAVIGATE_TO)?.let { navigationTarget ->
             when (navigationTarget) {
                 "home", "bookmarks" -> {
                     Log.d(TAG, "Handling immediate navigation to: $navigationTarget")

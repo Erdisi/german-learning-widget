@@ -39,7 +39,7 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         fun updateAllWidgets(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val componentName = ComponentName(context, BookmarksHeroWidget::class.java)
-            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName) ?: intArrayOf() // Handle potential null return
             
             if (appWidgetIds.isNotEmpty()) {
                 val intent = Intent(context, BookmarksHeroWidget::class.java).apply {
@@ -72,16 +72,21 @@ class BookmarksHeroWidget : AppWidgetProvider() {
                 // Set up main container click
                 setupMainClick(context, views, appWidgetId)
                 
-                // Load bookmarks
+                // Load bookmarks with null safety
                 val sentenceRepository = SentenceRepository.getInstance(context)
-                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                val bookmarkedSentences = try {
+                    sentenceRepository.getSavedSentences() ?: emptyList()
+                } catch (e: Exception) {
+                    android.util.Log.e("BookmarksHeroWidget", "Error loading bookmarks", e)
+                    emptyList()
+                }
                 
                 if (bookmarkedSentences.isEmpty()) {
                     showEmptyState(views, customization)
                 } else {
                     // Get current index for this widget
                     val currentIndex = currentIndices.getOrDefault(appWidgetId, 0)
-                    val validIndex = if (currentIndex >= bookmarkedSentences.size) 0 else currentIndex
+                    val validIndex = if (currentIndex >= bookmarkedSentences.size) 0 else currentIndex.coerceAtLeast(0)
                     currentIndices[appWidgetId] = validIndex
                     
                     updateHeroContent(context, views, bookmarkedSentences, validIndex, appWidgetId, customization)
@@ -127,7 +132,12 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         appWidgetId: Int,
         customization: com.germanleraningwidget.data.model.WidgetCustomization
     ) {
-        val currentSentence = bookmarkedSentences[currentIndex]
+        // Safe array access with bounds checking
+        val currentSentence = bookmarkedSentences.getOrNull(currentIndex) ?: run {
+            android.util.Log.w("BookmarksHeroWidget", "Invalid index $currentIndex for ${bookmarkedSentences.size} bookmarks")
+            showEmptyState(views, customization)
+            return
+        }
         val totalCount = bookmarkedSentences.size
         
         // Update counter
@@ -270,14 +280,24 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         val totalCount = bookmarkedSentences.size
         
         if (totalCount > 1) {
-            // Previous text
+            // Previous text with safe array access
             val prevIndex = if (currentIndex == 0) totalCount - 1 else currentIndex - 1
-            val prevText = bookmarkedSentences[prevIndex].germanText.take(20) + "..."
+            val prevSentence = bookmarkedSentences.getOrNull(prevIndex)
+            val prevText = if (prevSentence != null) {
+                prevSentence.germanText.take(20) + "..."
+            } else {
+                ""
+            }
             views.setTextViewText(R.id.widget_hero_prev_text, prevText)
             
-            // Next text
+            // Next text with safe array access
             val nextIndex = if (currentIndex == totalCount - 1) 0 else currentIndex + 1
-            val nextText = bookmarkedSentences[nextIndex].germanText.take(20) + "..."
+            val nextSentence = bookmarkedSentences.getOrNull(nextIndex)
+            val nextText = if (nextSentence != null) {
+                nextSentence.germanText.take(20) + "..."
+            } else {
+                ""
+            }
             views.setTextViewText(R.id.widget_hero_next_text, nextText)
         } else {
             views.setTextViewText(R.id.widget_hero_prev_text, "")
@@ -346,11 +366,16 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
-                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                val bookmarkedSentences = try {
+                    sentenceRepository.getSavedSentences() ?: emptyList()
+                } catch (e: Exception) {
+                    android.util.Log.e("BookmarksHeroWidget", "Error loading bookmarks in handleNextBookmark", e)
+                    emptyList()
+                }
                 
                 if (bookmarkedSentences.isNotEmpty()) {
-                    val currentIndex = currentIndices.getOrDefault(widgetId, 0)
-                    val nextIndex = (currentIndex + 1) % bookmarkedSentences.size
+                    val currentIndex = currentIndices.getOrDefault(widgetId, 0).coerceAtLeast(0)
+                    val nextIndex = ((currentIndex + 1) % bookmarkedSentences.size).coerceAtLeast(0)
                     currentIndices[widgetId] = nextIndex
                     
                     android.util.Log.d("BookmarksHeroWidget", "Moving to next bookmark: $nextIndex/${bookmarkedSentences.size}")
@@ -371,11 +396,20 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
-                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                val bookmarkedSentences = try {
+                    sentenceRepository.getSavedSentences() ?: emptyList()
+                } catch (e: Exception) {
+                    android.util.Log.e("BookmarksHeroWidget", "Error loading bookmarks in handlePreviousBookmark", e)
+                    emptyList()
+                }
                 
                 if (bookmarkedSentences.isNotEmpty()) {
-                    val currentIndex = currentIndices.getOrDefault(widgetId, 0)
-                    val prevIndex = if (currentIndex == 0) bookmarkedSentences.size - 1 else currentIndex - 1
+                    val currentIndex = currentIndices.getOrDefault(widgetId, 0).coerceAtLeast(0)
+                    val prevIndex = if (currentIndex == 0) {
+                        (bookmarkedSentences.size - 1).coerceAtLeast(0)
+                    } else {
+                        (currentIndex - 1).coerceAtLeast(0)
+                    }
                     currentIndices[widgetId] = prevIndex
                     
                     android.util.Log.d("BookmarksHeroWidget", "Moving to previous bookmark: $prevIndex/${bookmarkedSentences.size}")
@@ -419,7 +453,12 @@ class BookmarksHeroWidget : AppWidgetProvider() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val sentenceRepository = SentenceRepository.getInstance(context)
-                val bookmarkedSentences = sentenceRepository.getSavedSentences()
+                val bookmarkedSentences = try {
+                    sentenceRepository.getSavedSentences() ?: emptyList()
+                } catch (e: Exception) {
+                    android.util.Log.e("BookmarksHeroWidget", "Error loading bookmarks in handleRemoveBookmark", e)
+                    emptyList()
+                }
                 val sentenceToRemove = bookmarkedSentences.find { it.id == sentenceId }
                 
                 if (sentenceToRemove != null) {
@@ -427,8 +466,13 @@ class BookmarksHeroWidget : AppWidgetProvider() {
                     sentenceRepository.toggleSaveSentence(sentenceToRemove)
                     
                     // Adjust current index if needed
-                    val currentIndex = currentIndices.getOrDefault(widgetId, 0)
-                    val newBookmarkedSentences = sentenceRepository.getSavedSentences()
+                    val currentIndex = currentIndices.getOrDefault(widgetId, 0).coerceAtLeast(0)
+                    val newBookmarkedSentences = try {
+                        sentenceRepository.getSavedSentences() ?: emptyList()
+                    } catch (e: Exception) {
+                        android.util.Log.e("BookmarksHeroWidget", "Error loading new bookmarks", e)
+                        emptyList()
+                    }
                     
                     if (newBookmarkedSentences.isEmpty()) {
                         currentIndices[widgetId] = 0

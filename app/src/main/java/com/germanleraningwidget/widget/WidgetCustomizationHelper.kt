@@ -284,7 +284,7 @@ object WidgetCustomizationHelper {
                     BookmarksHeroWidget::class.java
                 )
             }
-            val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            val widgetIds = appWidgetManager.getAppWidgetIds(componentName) ?: intArrayOf() // Handle potential null return
             
             if (widgetIds.isNotEmpty()) {
                 // Trigger update for all instances of this widget type

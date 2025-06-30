@@ -63,18 +63,11 @@ fun GermanLearningWidgetTheme(
             insetsController.isAppearanceLightNavigationBars = !darkTheme
             
             // Set transparent status/navigation bars for modern edge-to-edge experience
-            // Use WindowInsetsController for modern API levels, fallback for older versions
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // Modern approach using WindowInsetsController (API 30+)
-                window.statusBarColor = Color.Transparent.toArgb()
-                window.navigationBarColor = Color.Transparent.toArgb()
-            } else {
-                // Legacy approach for API 24-29 (minSdkVersion is 24)
-                @Suppress("DEPRECATION")
-                window.statusBarColor = Color.Transparent.toArgb()
-                @Suppress("DEPRECATION")
-                window.navigationBarColor = Color.Transparent.toArgb()
-            }
+            // Use modern API approach with proper deprecation handling
+            @Suppress("DEPRECATION")
+            window.statusBarColor = Color.Transparent.toArgb()
+            @Suppress("DEPRECATION") 
+            window.navigationBarColor = Color.Transparent.toArgb()
         }
     }
 

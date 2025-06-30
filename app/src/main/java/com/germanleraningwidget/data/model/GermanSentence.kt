@@ -289,10 +289,4 @@ data class SentenceHistory(
     }
 }
 
-/**
- * Optimized extension function with caching for better performance.
- * Use the instance method for better performance when possible.
- */
-fun GermanSentence.matchesCriteria(targetLevel: String, allowedTopics: Set<String>): Boolean {
-    return this.matchesCriteria(targetLevel, allowedTopics)
-} 
+ 
