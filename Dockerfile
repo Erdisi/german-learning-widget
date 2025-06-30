@@ -13,13 +13,19 @@ ENV PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
 ENV PATH=$PATH:$ANDROID_SDK_ROOT/platform-tools
 ENV PATH=$PATH:$ANDROID_SDK_ROOT/emulator
 
-# Install system dependencies
+# Install system dependencies including libraries needed for AAPT2
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     git \
     curl \
     build-essential \
+    libc6-dev \
+    libbz2-1.0 \
+    libncurses5 \
+    libstdc++6 \
+    zlib1g \
+    file \
     && rm -rf /var/lib/apt/lists/*
 
 # Create android-sdk directory
@@ -40,6 +46,17 @@ RUN sdkmanager \
     "build-tools;34.0.0" \
     "cmake;3.22.1" \
     "ndk;26.1.10909125"
+
+# Set up Android build environment for containerized builds
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=2 -Dorg.gradle.jvmargs=-Xmx2g"
+ENV ANDROID_BUILD_TOOLS_VERSION=35.0.0
+ENV ANDROID_COMPILE_SDK=36
+ENV ANDROID_TARGET_SDK=36
+ENV ANDROID_MIN_SDK=21
+
+# Configure AAPT2 for containerized builds (fix daemon issues)
+ENV ANDROID_AAPT2_FROM_MAVEN=false
+ENV GRADLE_OPTS="$GRADLE_OPTS -Dandroid.aapt2FromMavenOverride=/opt/android-sdk/build-tools/35.0.0/aapt2"
 
 # =============================================================================
 # Stage 2: Development Environment
@@ -82,7 +99,7 @@ WORKDIR /app
 COPY gradle/ gradle/
 COPY gradlew .
 COPY gradlew.bat .
-COPY gradle.properties .
+COPY docker-gradle.properties gradle.properties
 COPY settings.gradle.kts .
 COPY build.gradle.kts .
 COPY gradle/libs.versions.toml gradle/
@@ -90,16 +107,16 @@ COPY gradle/libs.versions.toml gradle/
 # Make gradlew executable
 RUN chmod +x gradlew
 
-# Download Gradle and dependencies
-RUN ./gradlew --version
-RUN ./gradlew dependencies --configuration compileClasspath
+    # Download Gradle and dependencies
+    RUN ./gradlew --version
+    RUN ./gradlew dependencies
 
 # Copy app configuration
 COPY app/build.gradle.kts app/
 COPY app/proguard-rules.pro app/
 
-# Download app dependencies
-RUN ./gradlew app:dependencies --configuration debugCompileClasspath
+    # Download app dependencies
+    RUN ./gradlew app:dependencies
 
 # Copy source code
 COPY app/src/ app/src/
