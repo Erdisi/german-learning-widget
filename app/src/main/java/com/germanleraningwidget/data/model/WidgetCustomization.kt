@@ -2,61 +2,34 @@ package com.germanleraningwidget.data.model
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-
+import com.germanleraningwidget.util.DebugUtils
+import com.germanleraningwidget.util.AppConstants
 
 /**
  * Widget customization settings for individual widget types.
  * Each widget can have its own unique customization settings.
  * 
- * Note: Text sizes are now automatically calculated based on content length
- * and available space, removing the need for manual text size controls.
+ * Simplified approach with fixed 90-minute update intervals and 10 sentences per day.
+ * No user configuration for update frequency - all widgets update every 90 minutes.
  */
 data class WidgetCustomization(
     val widgetType: WidgetType,
     val backgroundColor: WidgetBackgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType),
-    val textContrast: WidgetTextContrast = WidgetTextContrast.NORMAL,
-    val sentencesPerDay: Int = DEFAULT_SENTENCES_PER_DAY
+    val textContrast: WidgetTextContrast = WidgetTextContrast.NORMAL
 ) {
     
     companion object {
-        const val MIN_SENTENCES_PER_DAY = 1
-        const val MAX_SENTENCES_PER_DAY = 10
-        const val DEFAULT_SENTENCES_PER_DAY = 3
+        /**
+         * Fixed update interval for all widgets (90 minutes).
+         * This provides 8-9 updates per day distributed throughout active hours.
+         */
+        const val FIXED_UPDATE_INTERVAL_MINUTES = AppConstants.FIXED_UPDATE_INTERVAL_MINUTES
         
         /**
-         * Get recommended update intervals in minutes for sentences per day.
-         * Distributes updates throughout a 16-hour active day (6 AM to 10 PM).
+         * Fixed number of sentences per day for all widgets.
+         * Each day, 10 unique sentences are selected and rotated through.
          */
-        fun getUpdateIntervalMinutes(sentencesPerDay: Int): Int {
-            val activeHours = 16 // 6 AM to 10 PM
-            val activeMinutes = activeHours * 60
-            return (activeMinutes / sentencesPerDay.coerceIn(MIN_SENTENCES_PER_DAY, MAX_SENTENCES_PER_DAY))
-                .coerceAtLeast(15) // Respect WorkManager 15-minute minimum
-        }
-        
-        /**
-         * Get daily schedule for sentence delivery.
-         * Returns list of hour offsets from 6 AM for when to deliver sentences.
-         */
-        fun getDailySchedule(sentencesPerDay: Int): List<Int> {
-            val validCount = sentencesPerDay.coerceIn(MIN_SENTENCES_PER_DAY, MAX_SENTENCES_PER_DAY)
-            val baseHour = 6 // Start at 6 AM
-            val activeHours = 16 // Until 10 PM
-            
-            return when (validCount) {
-                1 -> listOf(6) // 12 PM (noon)
-                2 -> listOf(2, 10) // 8 AM, 4 PM
-                3 -> listOf(1, 6, 11) // 7 AM, 12 PM, 5 PM
-                4 -> listOf(1, 4, 8, 12) // 7 AM, 10 AM, 2 PM, 6 PM
-                5 -> listOf(0, 3, 6, 9, 13) // 6 AM, 9 AM, 12 PM, 3 PM, 7 PM
-                6 -> listOf(0, 2, 5, 8, 11, 14) // 6 AM, 8 AM, 11 AM, 2 PM, 5 PM, 8 PM
-                7 -> listOf(0, 2, 4, 6, 9, 12, 15) // Every 2-3 hours
-                8 -> listOf(0, 2, 4, 6, 8, 10, 13, 16) // Every 2 hours
-                9 -> listOf(0, 1, 3, 5, 7, 9, 11, 14, 16) // Frequent updates
-                10 -> listOf(0, 1, 2, 4, 6, 8, 10, 12, 14, 16) // Maximum frequency
-                else -> listOf(6) // Fallback
-            }.map { it + baseHour } // Convert to actual hours (6 AM + offset)
-        }
+        const val FIXED_SENTENCES_PER_DAY = AppConstants.FIXED_SENTENCES_PER_DAY
         
         /**
          * Create default customization for a widget type.
@@ -64,8 +37,7 @@ data class WidgetCustomization(
         fun createDefault(widgetType: WidgetType): WidgetCustomization {
             return WidgetCustomization(
                 widgetType = widgetType,
-                backgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType),
-                sentencesPerDay = DEFAULT_SENTENCES_PER_DAY
+                backgroundColor = WidgetBackgroundColor.getDefaultForWidget(widgetType)
             )
         }
         
@@ -76,8 +48,7 @@ data class WidgetCustomization(
             return WidgetCustomization(
                 widgetType = widgetType,
                 backgroundColor = WidgetBackgroundColor.STONE,
-                textContrast = WidgetTextContrast.HIGH,
-                sentencesPerDay = DEFAULT_SENTENCES_PER_DAY
+                textContrast = WidgetTextContrast.HIGH
             )
         }
     }
@@ -87,11 +58,7 @@ data class WidgetCustomization(
      */
     fun validate(): ValidationResult {
         return try {
-            // Validate sentences per day
-            if (sentencesPerDay < MIN_SENTENCES_PER_DAY || sentencesPerDay > MAX_SENTENCES_PER_DAY) {
-                return ValidationResult.Error("Sentences per day must be between $MIN_SENTENCES_PER_DAY and $MAX_SENTENCES_PER_DAY")
-            }
-            
+            // Simple validation - just check if the widget type is valid
             ValidationResult.Success
         } catch (e: Exception) {
             ValidationResult.Error("Invalid customization: ${e.message}")
@@ -104,15 +71,6 @@ data class WidgetCustomization(
     fun isValid(): Boolean = validate().isSuccess
     
     /**
-     * Create a copy with safe defaults.
-     */
-    fun withSafeDefaults(): WidgetCustomization {
-        return copy(
-            sentencesPerDay = sentencesPerDay.coerceIn(MIN_SENTENCES_PER_DAY, MAX_SENTENCES_PER_DAY)
-        )
-    }
-    
-    /**
      * Get display name for the customization.
      */
     val displayName: String get() = widgetType.displayName
@@ -122,22 +80,10 @@ data class WidgetCustomization(
      */
     val customizationSummary: String get() = buildString {
         append("Background: ${backgroundColor.displayName}")
-        append(" • Contrast: ${textContrast.displayName}")
-        append(" • ${sentencesPerDay}/day")
-        append(" • Auto text sizing")
+        append(" • Text Contrast: Normal (Fixed)")
+        append(" • Updates every 90 minutes")
+        append(" • 10 sentences per day")
     }
-    
-    /**
-     * Get update interval in minutes for this widget.
-     */
-    val updateIntervalMinutes: Int get() = getUpdateIntervalMinutes(sentencesPerDay)
-    
-    /**
-     * Get daily delivery schedule for this widget.
-     */
-    val dailySchedule: List<Int> get() = getDailySchedule(sentencesPerDay)
-
-
     
     /**
      * Validation result for widget customization.
@@ -333,7 +279,7 @@ data class AllWidgetCustomizations(
         append("Main: ${mainWidget.backgroundColor.displayName}")
         append(" • Bookmarks: ${bookmarksWidget.backgroundColor.displayName}")
         append(" • Hero: ${heroWidget.backgroundColor.displayName}")
-        append(" • Auto text sizing")
+        append(" • Fixed 90-min updates")
     }
     
     companion object {

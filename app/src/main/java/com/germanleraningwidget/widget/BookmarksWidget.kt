@@ -100,6 +100,23 @@ class BookmarksWidget : AppWidgetProvider() {
                         isHeroWidget = false
                     )
                     
+                    // Apply colors to secondary text elements (title, counter, topic)
+                    WidgetCustomizationHelper.applySecondaryTextColors(
+                        views, customization,
+                        titleTextViewId = R.id.widget_bookmarks_title, // Now includes the bookmarks title
+                        levelTextViewId = null,
+                        topicTextViewId = R.id.widget_bookmarks_topic,
+                        counterTextViewId = R.id.widget_bookmarks_counter
+                    )
+                    
+                    // Apply dynamic backgrounds for better visibility
+                    WidgetCustomizationHelper.applyDynamicBackgrounds(
+                        views, customization,
+                        topicTextViewId = R.id.widget_bookmarks_topic,
+                        levelTextViewId = null,
+                        buttonId = R.id.widget_bookmarks_next_button // Apply to next button for visibility
+                    )
+                    
                     // Set up action buttons
                     setupNextButton(context, views, appWidgetId)
                     setupRemoveButton(context, views, appWidgetId, currentSentence.id)
@@ -184,6 +201,23 @@ class BookmarksWidget : AppWidgetProvider() {
             R.id.widget_bookmarks_german_text, R.id.widget_bookmarks_translation,
             "No bookmarks yet", "Save sentences to see them here",
             isHeroWidget = false
+        )
+        
+        // Apply colors to secondary text elements (title, counter, topic)
+        WidgetCustomizationHelper.applySecondaryTextColors(
+            views, customization,
+            titleTextViewId = R.id.widget_bookmarks_title, // Now includes the bookmarks title
+            levelTextViewId = null,
+            topicTextViewId = R.id.widget_bookmarks_topic,
+            counterTextViewId = R.id.widget_bookmarks_counter
+        )
+        
+        // Apply dynamic backgrounds for better visibility
+        WidgetCustomizationHelper.applyDynamicBackgrounds(
+            views, customization,
+            topicTextViewId = R.id.widget_bookmarks_topic,
+            levelTextViewId = null,
+            buttonId = R.id.widget_bookmarks_next_button
         )
     }
     

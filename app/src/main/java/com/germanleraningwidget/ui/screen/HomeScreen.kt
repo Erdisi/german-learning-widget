@@ -1,5 +1,6 @@
 package com.germanleraningwidget.ui.screen
 
+import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -42,6 +43,7 @@ import com.germanleraningwidget.data.repository.SentenceRepository
 import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
+import com.germanleraningwidget.util.WidgetDebugUtils
 
 /**
  * HomeScreen - Main dashboard for German Learning Widget app
@@ -171,6 +173,16 @@ fun HomeScreen(
                 },
                 isEnabled = !isLoading
             )
+        }
+        
+        // Widget Debug Section (only in debug builds)
+        if (com.germanleraningwidget.BuildConfig.DEBUG || hasError) {
+            item("widget_debug") {
+                OptimizedWidgetDebugCard(
+                    context = context,
+                    isEnabled = !isLoading
+                )
+            }
         }
     }
 }
@@ -657,6 +669,168 @@ private fun OptimizedLearningStatRow(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+/**
+ * Optimized Widget Debug Card with comprehensive debugging tools
+ */
+@Composable
+private fun OptimizedWidgetDebugCard(
+    context: Context,
+    isEnabled: Boolean
+) {
+    val scope = rememberCoroutineScope()
+    
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Widget debugging tools section"
+            }
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.BugReport,
+                    contentDescription = "Debug tools icon",
+                    modifier = Modifier.size(24.dp),
+                    tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Text(
+                    text = "Widget Debug Tools",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "Test and verify widget functionality",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Debug action buttons
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Test All Widgets button
+                    FilledTonalButton(
+                        onClick = {
+                            scope.launch {
+                                WidgetDebugUtils.runFullWidgetDebug(context, showToasts = true)
+                            }
+                        },
+                        enabled = isEnabled,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Test All",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    
+                    // Force Update button
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                WidgetDebugUtils.forceUpdateAllWidgets(context)
+                            }
+                        },
+                        enabled = isEnabled,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Update",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Create Test Data button
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                WidgetDebugUtils.createTestBookmarks(context, count = 5)
+                            }
+                        },
+                        enabled = isEnabled,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Test Data",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    
+                    // Performance Check button
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                WidgetDebugUtils.checkWidgetPerformance(context)
+                            }
+                        },
+                        enabled = isEnabled,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Speed,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Performance",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.germanleraningwidget.data.repository
 
 import android.content.Context
-import android.util.Log
+import com.germanleraningwidget.util.DebugUtils
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
@@ -74,7 +74,7 @@ class UserPreferencesRepository(
      */
     val userPreferences: Flow<UserPreferences> = context.dataStore.data
         .catch { exception ->
-            Log.e(TAG, "Error reading preferences", exception)
+            DebugUtils.logError(TAG, "Error reading preferences", exception)
             // Emit empty preferences on error, will be handled by map
             emit(emptyPreferences())
         }
@@ -83,10 +83,10 @@ class UserPreferencesRepository(
                 mapPreferencesToUserPreferences(preferences)
             } catch (e: Exception) {
                 try {
-                    Log.e(TAG, "Error mapping preferences", e)
+                    DebugUtils.logError(TAG, "Error mapping preferences", e)
                     UserPreferences()
                 } catch (fallbackError: Exception) {
-                    Log.e(TAG, "Error creating fallback preferences", fallbackError)
+                    DebugUtils.logError(TAG, "Error creating fallback preferences", fallbackError)
                     UserPreferences()
                 }
             }
@@ -103,20 +103,20 @@ class UserPreferencesRepository(
         val isOnboardingCompleted = preferences[PreferencesKeys.IS_ONBOARDING_COMPLETED] ?: false
         
         // Enhanced logging for debugging widget level issues
-        Log.d(TAG, "Loading preferences: selectedLevels=$selectedLevels, primaryLevel=$primaryLevel, legacyLevel=$legacyGermanLevel, onboarded=$isOnboardingCompleted")
+        DebugUtils.logInfo(TAG, "Loading preferences: selectedLevels=$selectedLevels, primaryLevel=$primaryLevel, legacyLevel=$legacyGermanLevel, onboarded=$isOnboardingCompleted")
         
         // Migration logic: if we have legacy data but no new data, migrate
         val (finalSelectedLevels, finalPrimaryLevel) = when {
             // New format exists - use it exactly as stored (respect user's choices)
             !selectedLevels.isNullOrEmpty() && !primaryLevel.isNullOrBlank() -> {
                 val validLevels = selectedLevels.filter { it.isNotBlank() }.toSet()
-                Log.d(TAG, "Using saved multi-level preferences: levels=$validLevels, primary=$primaryLevel")
+                DebugUtils.logInfo(TAG, "Using saved multi-level preferences: levels=$validLevels, primary=$primaryLevel")
                 Pair(validLevels, primaryLevel)
             }
             
             // Legacy format exists - migrate it
             !legacyGermanLevel.isNullOrBlank() -> {
-                Log.i(TAG, "Migrating from single-level ($legacyGermanLevel) to multi-level format")
+                DebugUtils.logInfo(TAG, "Migrating from single-level ($legacyGermanLevel) to multi-level format")
                 Pair(setOf(legacyGermanLevel), legacyGermanLevel)
             }
             
@@ -124,11 +124,11 @@ class UserPreferencesRepository(
             else -> {
                 if (isOnboardingCompleted) {
                     // This should rarely happen - only if user data was corrupted after onboarding
-                    Log.w(TAG, "Data corruption detected: onboarding completed but no levels found. Using A1 as emergency fallback.")
+                    DebugUtils.logWarning(TAG, "Data corruption detected: onboarding completed but no levels found. Using A1 as emergency fallback.")
                     Pair(setOf("A1"), "A1")
                 } else {
                     // New user hasn't completed onboarding yet
-                    Log.d(TAG, "New user, no preferences set yet")
+                    DebugUtils.logInfo(TAG, "New user, no preferences set yet")
                     Pair(emptySet(), "")
                 }
             }
@@ -165,7 +165,7 @@ class UserPreferencesRepository(
                     }
                 } ?: "A1"
                 preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL] = newPrimary
-                Log.i(TAG, "Updated primary level to $newPrimary")
+                DebugUtils.logInfo(TAG, "Updated primary level to $newPrimary")
             }
         }
     }
@@ -185,7 +185,7 @@ class UserPreferencesRepository(
             if (trimmedLevel !in selectedLevels) {
                 // Add the level to selected levels
                 preferences[PreferencesKeys.SELECTED_GERMAN_LEVELS] = selectedLevels + trimmedLevel
-                Log.i(TAG, "Added $trimmedLevel to selected levels when setting as primary")
+                                    DebugUtils.logInfo(TAG, "Added $trimmedLevel to selected levels when setting as primary")
             }
             preferences[PreferencesKeys.PRIMARY_GERMAN_LEVEL] = trimmedLevel
         }
@@ -229,7 +229,7 @@ class UserPreferencesRepository(
                     Result.success(true) // Level was added
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error toggling German level", e)
+                DebugUtils.logError(TAG, "Error toggling German level", e)
                 Result.failure(PreferencesException("Failed to toggle German level", e))
             }
         }
@@ -241,7 +241,7 @@ class UserPreferencesRepository(
      */
     @Deprecated("Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead")
     suspend fun updateGermanLevel(level: String): Result<Unit> {
-        Log.w(TAG, "Using deprecated updateGermanLevel method. Consider migrating to multi-level methods.")
+        DebugUtils.logWarning(TAG, "Using deprecated updateGermanLevel method. Consider migrating to multi-level methods.")
         return writeMutex.withLock {
             try {
                 updateSelectedGermanLevels(setOf(level)).getOrThrow()
@@ -292,7 +292,7 @@ class UserPreferencesRepository(
                     )
                 }
                 
-                Log.d(TAG, "Updating preferences: selectedLevels=${preferences.selectedGermanLevels}, primaryLevel=${preferences.primaryGermanLevel}, topics=${preferences.selectedTopics.size}")
+                DebugUtils.logInfo(TAG, "Updating preferences: selectedLevels=${preferences.selectedGermanLevels}, primaryLevel=${preferences.primaryGermanLevel}, topics=${preferences.selectedTopics.size}")
                 
                 context.dataStore.edit { prefs ->
                     prefs[PreferencesKeys.SELECTED_GERMAN_LEVELS] = preferences.selectedGermanLevels
@@ -304,14 +304,14 @@ class UserPreferencesRepository(
                 // Notify widgets to update with new preferences
                 notifyWidgetsOfPreferenceChange()
                 
-                Log.d(TAG, "Preferences updated successfully and widgets notified")
+                DebugUtils.logInfo(TAG, "Preferences updated successfully and widgets notified")
                 Result.success(Unit)
                 
             } catch (e: IOException) {
-                Log.e(TAG, "IO error updating preferences", e)
+                DebugUtils.logError(TAG, "IO error updating preferences", e)
                 Result.failure(PreferencesException("Failed to save preferences due to IO error", e))
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error updating preferences", e)
+                DebugUtils.logError(TAG, "Unexpected error updating preferences", e)
                 Result.failure(PreferencesException("Failed to save preferences: ${e.message}", e))
             }
         }
@@ -335,7 +335,7 @@ class UserPreferencesRepository(
             val preferences = userPreferences.first()
             Result.success(preferences)
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting current preferences", e)
+            DebugUtils.logError(TAG, "Error getting current preferences", e)
             Result.failure(PreferencesException("Failed to read preferences", e))
         }
     }
@@ -365,11 +365,11 @@ class UserPreferencesRepository(
             }
             
             val success = readValue == testValue
-            Log.d(TAG, "DataStore test ${if (success) "PASSED" else "FAILED"}")
+            DebugUtils.logInfo(TAG, "DataStore test ${if (success) "PASSED" else "FAILED"}")
             Result.success(success)
             
         } catch (e: Exception) {
-            Log.e(TAG, "DataStore test FAILED", e)
+            DebugUtils.logError(TAG, "DataStore test FAILED", e)
             Result.failure(PreferencesException("DataStore test failed", e))
         }
     }
@@ -383,7 +383,7 @@ class UserPreferencesRepository(
             val validationResult = currentPrefs.validate()
             
             if (!validationResult.isSuccess) {
-                Log.w(TAG, "Found invalid preferences, repairing: ${validationResult.errorMessage}")
+                DebugUtils.logWarning(TAG, "Found invalid preferences, repairing: ${validationResult.errorMessage}")
                 val repairedPrefs = UserPreferences.createSafe()
                 updateUserPreferences(repairedPrefs).getOrThrow()
                 
@@ -404,7 +404,7 @@ class UserPreferencesRepository(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to validate DataStore", e)
+            DebugUtils.logError(TAG, "Failed to validate DataStore", e)
             Result.failure(PreferencesException("Validation failed", e))
         }
     }
@@ -419,13 +419,13 @@ class UserPreferencesRepository(
         return writeMutex.withLock {
             try {
                 context.dataStore.edit(writeBlock)
-                Log.d(TAG, "Successfully completed: $operation")
+                DebugUtils.logInfo(TAG, "Successfully completed: $operation")
                 Result.success(Unit)
             } catch (e: IOException) {
-                Log.e(TAG, "IO error during $operation", e)
+                DebugUtils.logError(TAG, "IO error during $operation", e)
                 Result.failure(PreferencesException("IO error during $operation", e))
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error during $operation", e)
+                DebugUtils.logError(TAG, "Unexpected error during $operation", e)
                 Result.failure(PreferencesException("Failed to $operation", e))
             }
         }
@@ -443,17 +443,16 @@ class UserPreferencesRepository(
     /**
      * Notify all widgets that user preferences have changed.
      * This ensures widgets update to use new levels, topics, etc.
+     * FIXED: Now invalidates widget customization cache to ensure fresh data.
      */
     private fun notifyWidgetsOfPreferenceChange() {
         try {
-            // Directly call the widget update methods with proper imports
-            com.germanleraningwidget.widget.GermanLearningWidget.updateAllWidgets(context)
-            com.germanleraningwidget.widget.BookmarksWidget.updateAllWidgets(context)
-            com.germanleraningwidget.widget.BookmarksHeroWidget.updateAllWidgets(context)
+            // CRITICAL FIX: Use immediate update method for most reliable widget refresh
+            com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerImmediateAllWidgetUpdates(context)
             
-            Log.d(TAG, "Successfully notified all widgets of user preference changes")
+            DebugUtils.logInfo(TAG, "Successfully triggered immediate widget updates for preference changes")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to notify widgets of preference changes", e)
+            DebugUtils.logWarning(TAG, "Failed immediate widget update for preference changes, using fallback", e)
             // Fallback: try reflection-based approach
             notifyWidgetsViaReflection()
         }
@@ -463,20 +462,37 @@ class UserPreferencesRepository(
      * Fallback method to notify widgets via reflection if direct calls fail
      */
     private fun notifyWidgetsViaReflection() {
-        val widgetClasses = listOf(
-            "com.germanleraningwidget.widget.GermanLearningWidget",
-            "com.germanleraningwidget.widget.BookmarksWidget", 
-            "com.germanleraningwidget.widget.BookmarksHeroWidget"
-        )
-        
-        widgetClasses.forEach { className ->
+        try {
+            // First try immediate update with reflection approach
+            val helperClass = Class.forName("com.germanleraningwidget.widget.WidgetCustomizationHelper")
+            val immediateUpdateMethod = helperClass.getMethod("triggerImmediateAllWidgetUpdates", Context::class.java)
+            immediateUpdateMethod.invoke(null, context)
+            DebugUtils.logInfo(TAG, "Successfully triggered immediate widget updates via reflection")
+        } catch (e: Exception) {
+            DebugUtils.logWarning(TAG, "Failed immediate update via reflection, trying direct widget calls", e)
+            
+            // Last resort: direct widget update calls with cache invalidation
             try {
-                val widgetClass = Class.forName(className)
-                val updateMethod = widgetClass.getMethod("updateAllWidgets", Context::class.java)
-                updateMethod.invoke(null, context)
-                Log.d(TAG, "Successfully notified $className via reflection")
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to notify $className via reflection", e)
+                com.germanleraningwidget.widget.WidgetCustomizationHelper.invalidateAllCache()
+            } catch (cacheException: Exception) {
+                DebugUtils.logWarning(TAG, "Failed to invalidate cache in fallback method", cacheException)
+            }
+            
+            val widgetClasses = listOf(
+                "com.germanleraningwidget.widget.GermanLearningWidget",
+                "com.germanleraningwidget.widget.BookmarksWidget", 
+                "com.germanleraningwidget.widget.BookmarksHeroWidget"
+            )
+            
+            widgetClasses.forEach { className ->
+                try {
+                    val widgetClass = Class.forName(className)
+                    val updateMethod = widgetClass.getMethod("updateAllWidgets", Context::class.java)
+                    updateMethod.invoke(null, context)
+                    DebugUtils.logInfo(TAG, "Successfully notified $className via reflection")
+                } catch (widgetException: Exception) {
+                    DebugUtils.logWarning(TAG, "Failed to notify $className via reflection", widgetException)
+                }
             }
         }
     }

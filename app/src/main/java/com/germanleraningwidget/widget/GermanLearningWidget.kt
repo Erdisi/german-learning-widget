@@ -10,6 +10,9 @@ import com.germanleraningwidget.MainActivity
 import com.germanleraningwidget.R
 import com.germanleraningwidget.data.model.GermanSentence
 import com.germanleraningwidget.data.model.WidgetType
+import com.germanleraningwidget.data.model.WidgetCustomization
+import com.germanleraningwidget.data.model.WidgetBackgroundColor
+import com.germanleraningwidget.data.model.WidgetTextContrast
 import com.germanleraningwidget.data.repository.SentenceRepository
 import com.germanleraningwidget.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.CoroutineScope
@@ -47,18 +50,22 @@ class GermanLearningWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        android.util.Log.d("GermanLearningWidget", "onUpdate called for widgets: ${appWidgetIds.contentToString()}")
         for (appWidgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, appWidgetId)
+            // FIXED: Don't force new sentence on regular updates - preserves current content
+            updateWidget(context, appWidgetManager, appWidgetId, forceNewSentence = false)
         }
     }
     
     /**
      * Single method to update a widget with current data and customizations.
+     * CRITICAL FIX: Only fetch new sentence when explicitly requested, not on every update.
      */
     private fun updateWidget(
         context: Context,
         appWidgetManager: AppWidgetManager,
-        appWidgetId: Int
+        appWidgetId: Int,
+        forceNewSentence: Boolean = false
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -69,21 +76,33 @@ class GermanLearningWidget : AppWidgetProvider() {
                     context, views, WidgetType.MAIN, R.id.widget_container
                 )
                 
-                // Load repositories
-                val sentenceRepository = SentenceRepository.getInstance(context)
-                val preferencesRepository = UserPreferencesRepository(context)
-                val preferences = preferencesRepository.userPreferences.first()
-                
-                // Get sentence data using multi-level support
-                val sentence = sentenceRepository.getRandomSentenceFromLevels(
-                    levels = preferences.selectedGermanLevels,
-                    topics = preferences.selectedTopics.toList()
-                )
+                // CRITICAL FIX: Only get new sentence when forced or when no current sentence exists
+                val sentence = if (forceNewSentence || !currentSentences.containsKey(appWidgetId)) {
+                    android.util.Log.d("GermanLearningWidget", "Getting new sentence for widget $appWidgetId (force: $forceNewSentence, no current: ${!currentSentences.containsKey(appWidgetId)})")
+                    
+                    // Load repositories only when we need a new sentence
+                    val sentenceRepository = SentenceRepository.getInstance(context)
+                    val preferencesRepository = UserPreferencesRepository(context)
+                    val preferences = preferencesRepository.userPreferences.first()
+                    
+                    // Get sentence data using multi-level support
+                    sentenceRepository.getRandomSentenceFromLevels(
+                        levels = preferences.selectedGermanLevels,
+                        topics = preferences.selectedTopics
+                    )
+                } else {
+                    // Use existing sentence to prevent continuous changes
+                    val existingSentence = currentSentences[appWidgetId]
+                    android.util.Log.d("GermanLearningWidget", "Using existing sentence for widget $appWidgetId: ${existingSentence?.germanText}")
+                    existingSentence
+                }
                 
                 if (sentence != null) {
-                    // Store current sentence
-                    currentSentences[appWidgetId] = sentence
-                    android.util.Log.d("GermanLearningWidget", "Stored sentence ${sentence.id} for widget $appWidgetId")
+                    // Store current sentence only if it's new
+                    if (forceNewSentence || !currentSentences.containsKey(appWidgetId)) {
+                        currentSentences[appWidgetId] = sentence
+                        android.util.Log.d("GermanLearningWidget", "Stored new sentence ${sentence.id} for widget $appWidgetId")
+                    }
                     
                     // Set text content
                     views.setTextViewText(R.id.widget_german_text, sentence.germanText)
@@ -99,7 +118,25 @@ class GermanLearningWidget : AppWidgetProvider() {
                         isHeroWidget = false
                     )
                     
-                    // Set save button state
+                    // Apply colors to secondary text elements (title, level, topic)
+                    WidgetCustomizationHelper.applySecondaryTextColors(
+                        views, customization,
+                        titleTextViewId = R.id.widget_main_title, // Now includes the main title
+                        levelTextViewId = R.id.widget_level_indicator,
+                        topicTextViewId = R.id.widget_topic,
+                        counterTextViewId = null
+                    )
+                    
+                    // Apply dynamic backgrounds for better visibility
+                    WidgetCustomizationHelper.applyDynamicBackgrounds(
+                        views, customization,
+                        topicTextViewId = R.id.widget_topic,
+                        levelTextViewId = R.id.widget_level_indicator,
+                        buttonId = R.id.widget_save_button
+                    )
+                    
+                    // Set save button state - always check to ensure it's current
+                    val sentenceRepository = SentenceRepository.getInstance(context)
                     val isSaved = sentenceRepository.isSentenceSaved(sentence.id)
                     views.setImageViewResource(
                         R.id.widget_save_button,
@@ -110,7 +147,7 @@ class GermanLearningWidget : AppWidgetProvider() {
                     setupSaveButton(context, views, appWidgetId, sentence.id)
                 } else {
                     // No sentences found matching user preferences - show setup required message
-                    android.util.Log.w("GermanLearningWidget", "No sentences found for user preferences: levels=${preferences.selectedGermanLevels}, topics=${preferences.selectedTopics}")
+                    android.util.Log.w("GermanLearningWidget", "No sentences found for widget $appWidgetId")
                     
                     // Show setup required message instead of defaulting to A1
                     views.setTextViewText(R.id.widget_german_text, "Setup Required")
@@ -230,15 +267,36 @@ class GermanLearningWidget : AppWidgetProvider() {
                 val germanText = intent.getStringExtra("german_text")
                 val translation = intent.getStringExtra("translation")
                 
+                // Check for fresh customization data
+                val freshCustomizationBackgroundColor = intent.getStringExtra("fresh_customization_background_color")
+                val freshCustomizationTextContrast = intent.getStringExtra("fresh_customization_text_contrast")
+                
+                // Check if this is a new sentence from the worker
+                val triggerUpdate = intent.getBooleanExtra("triggerUpdate", false)
+                val sentenceId = intent.getLongExtra("sentenceId", -1L)
+                
+                android.util.Log.d("GermanLearningWidget", "ACTION_APPWIDGET_UPDATE: germanText=$germanText, triggerUpdate=$triggerUpdate, sentenceId=$sentenceId")
+                
                 if (appWidgetIds != null) {
                     if (germanText != null && translation != null) {
-                        // Custom update with specific sentence data
+                        // Custom update with specific sentence data from worker
                         updateWidgetsWithSentence(context, appWidgetIds, germanText, translation, intent)
-                    } else {
-                        // Regular update - refresh all widgets
+                    } else if (freshCustomizationBackgroundColor != null || freshCustomizationTextContrast != null) {
+                        // Custom update with fresh customization data
+                        updateWidgetsWithFreshCustomization(context, appWidgetIds, intent)
+                    } else if (triggerUpdate || sentenceId != -1L) {
+                        // Worker triggered update - force new sentence
+                        android.util.Log.d("GermanLearningWidget", "Worker triggered update - forcing new sentence")
                         val appWidgetManager = AppWidgetManager.getInstance(context)
                         for (appWidgetId in appWidgetIds) {
-                            updateWidget(context, appWidgetManager, appWidgetId)
+                            updateWidget(context, appWidgetManager, appWidgetId, forceNewSentence = true)
+                        }
+                    } else {
+                        // Regular update - preserve current sentence
+                        android.util.Log.d("GermanLearningWidget", "Regular update - preserving current sentence")
+                        val appWidgetManager = AppWidgetManager.getInstance(context)
+                        for (appWidgetId in appWidgetIds) {
+                            updateWidget(context, appWidgetManager, appWidgetId, forceNewSentence = false)
                         }
                     }
                 }
@@ -246,6 +304,166 @@ class GermanLearningWidget : AppWidgetProvider() {
         }
     }
     
+    /**
+     * Update widgets with fresh customization data from UI changes.
+     */
+    private fun updateWidgetsWithFreshCustomization(
+        context: Context,
+        appWidgetIds: IntArray,
+        intent: Intent
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Extract customization data from intent
+                val backgroundColorKey = intent.getStringExtra("fresh_customization_background_color")
+                val textContrastKey = intent.getStringExtra("fresh_customization_text_contrast")
+                
+                android.util.Log.d("GermanLearningWidget", "Received fresh customization: bg=$backgroundColorKey, contrast=$textContrastKey")
+                
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                
+                for (appWidgetId in appWidgetIds) {
+                    if (appWidgetId < 0) continue
+                    
+                    val views = RemoteViews(context.packageName, R.layout.widget_german_learning)
+                    
+                    // Create fresh customization object if we have the data
+                    val freshCustomization = if (backgroundColorKey != null || textContrastKey != null) {
+                        try {
+                            // Get current customization as base
+                            val currentCustomization = WidgetCustomization.createDefault(WidgetType.MAIN)
+                            
+                            // Override with fresh values
+                            currentCustomization.copy(
+                                backgroundColor = backgroundColorKey?.let { key ->
+                                    WidgetBackgroundColor.values().find { it.key == key }
+                                } ?: currentCustomization.backgroundColor,
+                                textContrast = textContrastKey?.let { key ->
+                                    WidgetTextContrast.values().find { it.key == key }
+                                } ?: currentCustomization.textContrast
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.e("GermanLearningWidget", "Error creating fresh customization", e)
+                            null
+                        }
+                    } else null
+                    
+                    // Apply customizations with fresh data
+                    val customization = WidgetCustomizationHelper.applyCustomizations(
+                        context, views, WidgetType.MAIN, R.id.widget_container, freshCustomization
+                    )
+                    
+                    // Load current content or use existing content
+                    val currentSentence = currentSentences[appWidgetId]
+                    if (currentSentence != null) {
+                        // Update existing content with new customizations
+                        views.setTextViewText(R.id.widget_german_text, currentSentence.germanText)
+                        views.setTextViewText(R.id.widget_translation, currentSentence.translation)
+                        views.setTextViewText(R.id.widget_topic, currentSentence.topic)
+                        views.setTextViewText(R.id.widget_level_indicator, currentSentence.level)
+                        
+                        // Apply automatic text customizations
+                        WidgetCustomizationHelper.applyAutoTextCustomizations(
+                            views, customization,
+                            R.id.widget_german_text, R.id.widget_translation,
+                            currentSentence.germanText, currentSentence.translation,
+                            isHeroWidget = false
+                        )
+                        
+                        // Set up save button
+                        val sentenceRepository = SentenceRepository.getInstance(context)
+                        val isSaved = sentenceRepository.isSentenceSaved(currentSentence.id)
+                        views.setImageViewResource(
+                            R.id.widget_save_button,
+                            if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
+                        )
+                        setupSaveButton(context, views, appWidgetId, currentSentence.id)
+                    } else {
+                        // Load fresh content with new customizations
+                        loadFreshContent(context, views, appWidgetId, customization)
+                    }
+                    
+                    setupMainClick(context, views, appWidgetId)
+                    
+                    // Update on main thread
+                    CoroutineScope(Dispatchers.Main).launch {
+                        appWidgetManager.updateAppWidget(appWidgetId, views)
+                        android.util.Log.d("GermanLearningWidget", "Widget $appWidgetId updated with fresh customization")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GermanLearningWidget", "Error updating widgets with fresh customization", e)
+            }
+        }
+    }
+    
+    /**
+     * Load fresh content for widget when no existing content is available.
+     */
+    private suspend fun loadFreshContent(
+        context: Context,
+        views: RemoteViews,
+        appWidgetId: Int,
+        customization: WidgetCustomization
+    ) {
+        try {
+            val sentenceRepository = SentenceRepository.getInstance(context)
+            val preferencesRepository = UserPreferencesRepository(context)
+            val preferences = preferencesRepository.userPreferences.first()
+            
+            val sentence = sentenceRepository.getRandomSentenceFromLevels(
+                levels = preferences.selectedGermanLevels,
+                topics = preferences.selectedTopics
+            )
+            
+            if (sentence != null) {
+                currentSentences[appWidgetId] = sentence
+                views.setTextViewText(R.id.widget_german_text, sentence.germanText)
+                views.setTextViewText(R.id.widget_translation, sentence.translation)
+                views.setTextViewText(R.id.widget_topic, sentence.topic)
+                views.setTextViewText(R.id.widget_level_indicator, sentence.level)
+                
+                WidgetCustomizationHelper.applyAutoTextCustomizations(
+                    views, customization,
+                    R.id.widget_german_text, R.id.widget_translation,
+                    sentence.germanText, sentence.translation,
+                    isHeroWidget = false
+                )
+                
+                // Apply colors to secondary text elements (title, level, topic)
+                WidgetCustomizationHelper.applySecondaryTextColors(
+                    views, customization,
+                    titleTextViewId = R.id.widget_main_title, // Now includes the main title
+                    levelTextViewId = R.id.widget_level_indicator,
+                    topicTextViewId = R.id.widget_topic,
+                    counterTextViewId = null
+                )
+                
+                // Apply dynamic backgrounds for better visibility
+                WidgetCustomizationHelper.applyDynamicBackgrounds(
+                    views, customization,
+                    topicTextViewId = R.id.widget_topic,
+                    levelTextViewId = R.id.widget_level_indicator,
+                    buttonId = R.id.widget_save_button
+                )
+                
+                val isSaved = sentenceRepository.isSentenceSaved(sentence.id)
+                views.setImageViewResource(
+                    R.id.widget_save_button,
+                    if (isSaved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark_border
+                )
+                setupSaveButton(context, views, appWidgetId, sentence.id)
+            } else {
+                views.setTextViewText(R.id.widget_german_text, "Setup Required")
+                views.setTextViewText(R.id.widget_translation, "Tap to configure preferences")
+                views.setTextViewText(R.id.widget_topic, "Setup")
+                views.setTextViewText(R.id.widget_level_indicator, "")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("GermanLearningWidget", "Error loading fresh content", e)
+        }
+    }
+
     /**
      * Update widgets with specific sentence data (from WorkManager).
      */
@@ -309,6 +527,23 @@ class GermanLearningWidget : AppWidgetProvider() {
                         isHeroWidget = false
                     )
                     
+                    // Apply colors to secondary text elements (title, level, topic)
+                    WidgetCustomizationHelper.applySecondaryTextColors(
+                        views, customization,
+                        titleTextViewId = R.id.widget_main_title, // Now includes the main title
+                        levelTextViewId = R.id.widget_level_indicator,
+                        topicTextViewId = R.id.widget_topic,
+                        counterTextViewId = null
+                    )
+                    
+                    // Apply dynamic backgrounds for better visibility
+                    WidgetCustomizationHelper.applyDynamicBackgrounds(
+                        views, customization,
+                        topicTextViewId = R.id.widget_topic,
+                        levelTextViewId = R.id.widget_level_indicator,
+                        buttonId = R.id.widget_save_button
+                    )
+                    
                     // Set up save button if we have sentence ID
                     if (sentenceId != -1L) {
                         val sentenceRepository = SentenceRepository.getInstance(context)
@@ -334,7 +569,7 @@ class GermanLearningWidget : AppWidgetProvider() {
     }
     
     /**
-     * Handle save/unsave sentence action.
+     * Handle save/unsave sentence action with improved reliability.
      */
     private fun handleSaveSentence(context: Context, widgetId: Int, sentenceId: Long) {
         android.util.Log.d("GermanLearningWidget", "handleSaveSentence: widgetId=$widgetId, sentenceId=$sentenceId")
@@ -348,9 +583,35 @@ class GermanLearningWidget : AppWidgetProvider() {
                 
                 android.util.Log.d("GermanLearningWidget", "Retrieved sentence for widget $widgetId: $currentSentence")
                 
-                if (currentSentence != null && currentSentence.id == sentenceId) {
-                    android.util.Log.d("GermanLearningWidget", "Toggling save state for sentence: ${currentSentence.germanText}")
-                    val isNowSaved = sentenceRepository.toggleSaveSentence(currentSentence)
+                // CRITICAL FIX: Handle case where currentSentences map is empty or incorrect
+                val sentenceToToggle = if (currentSentence != null && currentSentence.id == sentenceId) {
+                    android.util.Log.d("GermanLearningWidget", "Using cached sentence: ${currentSentence.germanText}")
+                    currentSentence
+                } else {
+                    android.util.Log.w("GermanLearningWidget", "Cached sentence mismatch or missing. Attempting to find sentence by ID: $sentenceId")
+                    
+                    // ROBUST FALLBACK: Try to find the sentence in repository by ID
+                    val foundSentence = try {
+                        sentenceRepository.getSentenceById(sentenceId)
+                    } catch (e: Exception) {
+                        android.util.Log.e("GermanLearningWidget", "Failed to find sentence by ID $sentenceId", e)
+                        null
+                    }
+                    
+                    if (foundSentence != null) {
+                        android.util.Log.d("GermanLearningWidget", "Found sentence in repository: ${foundSentence.germanText}")
+                        // Update cache with found sentence
+                        currentSentences[widgetId] = foundSentence
+                        foundSentence
+                    } else {
+                        android.util.Log.e("GermanLearningWidget", "Could not find sentence with ID $sentenceId anywhere")
+                        null
+                    }
+                }
+                
+                if (sentenceToToggle != null) {
+                    android.util.Log.d("GermanLearningWidget", "Toggling save state for sentence: ${sentenceToToggle.germanText}")
+                    val isNowSaved = sentenceRepository.toggleSaveSentence(sentenceToToggle)
                     
                     android.util.Log.d("GermanLearningWidget", "Sentence is now saved: $isNowSaved")
                     
@@ -364,16 +625,16 @@ class GermanLearningWidget : AppWidgetProvider() {
                     )
                     
                     // Restore current content
-                    views.setTextViewText(R.id.widget_german_text, currentSentence.germanText)
-                    views.setTextViewText(R.id.widget_translation, currentSentence.translation)
-                    views.setTextViewText(R.id.widget_topic, currentSentence.topic)
-                    views.setTextViewText(R.id.widget_level_indicator, currentSentence.level)
+                    views.setTextViewText(R.id.widget_german_text, sentenceToToggle.germanText)
+                    views.setTextViewText(R.id.widget_translation, sentenceToToggle.translation)
+                    views.setTextViewText(R.id.widget_topic, sentenceToToggle.topic)
+                    views.setTextViewText(R.id.widget_level_indicator, sentenceToToggle.level)
                     
                     // Apply automatic text customizations
                     WidgetCustomizationHelper.applyAutoTextCustomizations(
                         views, customization,
                         R.id.widget_german_text, R.id.widget_translation,
-                        currentSentence.germanText, currentSentence.translation,
+                        sentenceToToggle.germanText, sentenceToToggle.translation,
                         isHeroWidget = false
                     )
                     
@@ -393,28 +654,23 @@ class GermanLearningWidget : AppWidgetProvider() {
                         android.util.Log.d("GermanLearningWidget", "Widget $widgetId updated with new bookmark state")
                     }
                 } else {
-                    android.util.Log.e("GermanLearningWidget", "Could not find sentence for widget $widgetId or sentence ID mismatch. Expected: $sentenceId, Current sentence: $currentSentence")
+                    android.util.Log.e("GermanLearningWidget", "CRITICAL ERROR: Could not find sentence with ID $sentenceId. Save button will not work.")
                     
-                    // Fallback: try to find the sentence in the repository and update
-                    if (sentenceId == 999L) {
-                        // Handle default sentence - this should rarely happen
-                        val defaultSentence = GermanSentence(
-                            id = 999L,
-                            germanText = "Setup Required",
-                            translation = "Configure learning preferences",
-                            level = "Setup",
-                            topic = "Setup"
-                        )
-                        currentSentences[widgetId] = defaultSentence
-                        sentenceRepository.toggleSaveSentence(defaultSentence)
-                        
-                        // Update widget with default sentence
-                        val appWidgetManager = AppWidgetManager.getInstance(context)
-                        updateWidget(context, appWidgetManager, widgetId)
-                    }
+                    // LAST RESORT: Refresh the entire widget to try to recover
+                    android.util.Log.w("GermanLearningWidget", "Attempting widget refresh as last resort")
+                    val appWidgetManager = AppWidgetManager.getInstance(context)
+                    updateWidget(context, appWidgetManager, widgetId, forceNewSentence = false)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("GermanLearningWidget", "Error handling save sentence", e)
+                
+                // ERROR RECOVERY: Try to refresh the widget in case of any errors
+                try {
+                    val appWidgetManager = AppWidgetManager.getInstance(context)
+                    updateWidget(context, appWidgetManager, widgetId, forceNewSentence = false)
+                } catch (recoveryException: Exception) {
+                    android.util.Log.e("GermanLearningWidget", "Error recovery also failed", recoveryException)
+                }
             }
         }
     }

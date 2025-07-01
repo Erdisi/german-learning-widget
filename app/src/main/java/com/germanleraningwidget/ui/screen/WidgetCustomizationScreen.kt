@@ -340,7 +340,7 @@ private fun WidgetCustomizationCard(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Background: ${customization.backgroundColor.displayName} • Contrast: ${customization.textContrast.displayName} • ${customization.sentencesPerDay} sentences/day",
+                    text = "Background: ${customization.backgroundColor.displayName} • Text Contrast: Normal (Fixed) • Updates every 90 minutes",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -13,9 +13,10 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="12dp">
         
         <TextView
+            android:id="@+id/widget_main_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -39,37 +40,53 @@
     
     </LinearLayout>
     
-    <!-- German Text -->
-    <TextView
-        android:id="@+id/widget_german_text"
+    <!-- Content area with more space for text -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/widget_demo_german_greeting"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:fontFamily="sans-serif"
-        android:layout_marginBottom="8dp"
-        android:lineSpacingExtra="2dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+        
+        <!-- German Text with more space -->
+        <TextView
+            android:id="@+id/widget_german_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_demo_german_greeting"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif"
+            android:layout_marginBottom="12dp"
+            android:lineSpacingExtra="4dp"
+            android:gravity="center_vertical"
+            android:maxLines="3"
+            android:ellipsize="end" />
+        
+        <!-- Translation with more space -->
+        <TextView
+            android:id="@+id/widget_translation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_demo_english_greeting"
+            android:textColor="#E6FFFFFF"
+            android:textSize="16sp"
+            android:fontFamily="sans-serif"
+            android:lineSpacingExtra="2dp"
+            android:gravity="center_vertical"
+            android:maxLines="2"
+            android:ellipsize="end" />
     
-    <!-- Translation -->
-    <TextView
-        android:id="@+id/widget_translation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/widget_demo_english_greeting"
-        android:textColor="#E6FFFFFF"
-        android:textSize="14sp"
-        android:fontFamily="sans-serif"
-        android:layout_marginBottom="12dp"
-        android:lineSpacingExtra="1dp" />
+    </LinearLayout>
     
     <!-- Bottom section with topic and save button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:layout_marginTop="12dp">
         
         <!-- Topic -->
         <TextView

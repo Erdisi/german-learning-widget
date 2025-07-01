@@ -1,250 +1,330 @@
 package com.germanleraningwidget
 
 import android.app.Application
-import android.util.Log
+import android.content.Context
 import androidx.work.Configuration
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
-import com.germanleraningwidget.BuildConfig
-import java.util.concurrent.Executors
+import com.germanleraningwidget.util.AppLogger
+import com.germanleraningwidget.util.DebugUtils
+import com.germanleraningwidget.util.OptimizationUtils
+import com.germanleraningwidget.util.PerformanceMonitor
+import com.germanleraningwidget.worker.SentenceDeliveryWorker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
- * Custom Application class for German Learning Widget app.
+ * Optimized main application class with comprehensive performance monitoring and debugging.
  * 
- * Responsibilities:
- * - Initialize WorkManager with custom configuration
- * - Set up global app-level configurations
- * - Handle application lifecycle events
- * - Provide dependency injection points for testing
+ * Features:
+ * - Performance monitoring and optimization
+ * - Comprehensive logging and debugging
+ * - Memory management and cleanup
+ * - Background work scheduling
+ * - Health monitoring and reporting
  * 
- * Thread Safety: All initialization is done on main thread
- * Error Handling: Graceful handling of initialization failures
- * Performance: Optimized WorkManager configuration
+ * This class ensures optimal app performance from startup to shutdown.
  */
 class GermanLearningApplication : Application(), Configuration.Provider {
     
+    // Application-wide coroutine scope for background operations
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    
     companion object {
         private const val TAG = "GermanLearningApp"
-        private const val WORK_MANAGER_THREAD_POOL_SIZE = 4
         
-        // For testing - allows access to application instance
-        @Volatile
-        private var instance: GermanLearningApplication? = null
-        
-        fun getInstance(): GermanLearningApplication? = instance
+        // Performance monitoring flags
+        private const val ENABLE_PERFORMANCE_MONITORING = true
+        private const val ENABLE_MEMORY_MONITORING = true
+        private const val ENABLE_DEBUG_LOGGING = true
     }
     
     override fun onCreate() {
         super.onCreate()
         
+        // Initialize performance monitoring immediately
+        initializePerformanceMonitoring()
+        
+        // Initialize core application components
+        OptimizationUtils.measureOptimizedOperation("app_initialization") {
+            initializeApplication()
+        }
+        
+        DebugUtils.logInfo(TAG, "German Learning Widget application initialized successfully")
+        AppLogger.logInfo(TAG, "Application startup completed")
+    }
+    
+    /**
+     * Initialize comprehensive performance monitoring
+     */
+    private fun initializePerformanceMonitoring() {
         try {
-            instance = this
+            if (ENABLE_PERFORMANCE_MONITORING) {
+                DebugUtils.logInfo(TAG, "Starting performance monitoring")
+                OptimizationUtils.startMonitoring(this)
+                
+                // Start performance monitor
+                PerformanceMonitor.startMonitoring(this)
+                
+                // Schedule periodic health reports
+                scheduleHealthReporting()
+            }
             
-            Log.d(TAG, "Initializing German Learning Application")
-            
-            // Initialize WorkManager with custom configuration
-            initializeWorkManager()
-            
-            // Initialize other app-level components
-            initializeAppComponents()
-            
-            Log.i(TAG, "Application initialized successfully")
+            if (ENABLE_DEBUG_LOGGING) {
+                DebugUtils.logInfo(TAG, "Debug logging enabled")
+            }
             
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize application", e)
-            // Don't crash the app, but log the error for debugging
+            DebugUtils.logError(TAG, "Error initializing performance monitoring", e)
         }
     }
     
-    override fun onTerminate() {
-        super.onTerminate()
-        Log.d(TAG, "Application terminating")
-        instance = null
+    /**
+     * Initialize core application components
+     */
+    private fun initializeApplication() {
+        try {
+            // Initialize app logger
+            AppLogger.logInfo(TAG, "Initializing application components")
+            
+            // Initialize background work
+            initializeBackgroundWork()
+            
+            // CRITICAL FIX: Initialize widget customizations to prevent reset on app restart
+            initializeWidgetCustomizations()
+            
+            // Perform initial cleanup
+            performInitialCleanup()
+            
+            // Log application health
+            logApplicationHealth()
+            
+        } catch (e: Exception) {
+            DebugUtils.logError(TAG, "Error during application initialization", e)
+            AppLogger.logError(TAG, "Application initialization failed", e)
+        }
     }
     
-    override fun onLowMemory() {
-        super.onLowMemory()
-        Log.w(TAG, "Low memory warning - performing aggressive cleanup")
-        
-        performMemoryCleanup(aggressive = true)
-    }
-    
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        
-        // Handle memory trim events - some constants are deprecated since API 34
-        when (level) {
-            // Still valid constants
-            android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
-                Log.d(TAG, "UI hidden (level: $level) - performing cleanup")
-                performMemoryCleanup(aggressive = false)
-            }
-            android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
-                Log.d(TAG, "App backgrounded (level: $level) - performing background cleanup")
-                performMemoryCleanup(aggressive = false)
-            }
-            // Handle deprecated constants gracefully for backwards compatibility
-            else -> {
-                when {
-                    level <= 15 -> { // RUNNING levels (5, 10, 15)
-                        Log.w(TAG, "Memory pressure (level: $level) - performing cleanup")
-                        performMemoryCleanup(aggressive = level >= 10)
+    /**
+     * Initialize widget customizations to prevent reset on app restart.
+     * CRITICAL FIX: Preloads cached customizations so widgets don't revert to defaults.
+     */
+    private fun initializeWidgetCustomizations() {
+        applicationScope.launch {
+            OptimizationUtils.measureOptimizedOperation("widget_customization_initialization") {
+                try {
+                    DebugUtils.logInfo(TAG, "Preloading widget customizations")
+                    
+                    // Import widget types
+                    val widgetTypes = listOf(
+                        com.germanleraningwidget.data.model.WidgetType.MAIN,
+                        com.germanleraningwidget.data.model.WidgetType.BOOKMARKS,
+                        com.germanleraningwidget.data.model.WidgetType.HERO
+                    )
+                    
+                    // Preload customizations for all widget types SYNCHRONOUSLY
+                    widgetTypes.forEach { widgetType ->
+                        try {
+                            com.germanleraningwidget.widget.WidgetCustomizationHelper.refreshCache(this@GermanLearningApplication, widgetType, sync = true)
+                            DebugUtils.logInfo(TAG, "Synchronously loaded customizations for ${widgetType.displayName}")
+                        } catch (e: Exception) {
+                            DebugUtils.logWarning(TAG, "Failed to synchronously load customizations for ${widgetType.displayName}: ${e.message}")
+                        }
                     }
-                    level >= 40 -> { // BACKGROUND levels (40, 60, 80)
-                        Log.w(TAG, "Background memory pressure (level: $level) - performing aggressive cleanup")
-                        performMemoryCleanup(aggressive = level >= 60)
+                    
+                    // Small delay to ensure cache is fully loaded, then update widgets
+                    kotlinx.coroutines.delay(200)
+                    
+                    // Trigger widget updates with the loaded customizations
+                    try {
+                        com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerImmediateAllWidgetUpdates(this@GermanLearningApplication)
+                        DebugUtils.logInfo(TAG, "Triggered widget updates with loaded customizations")
+                    } catch (e: Exception) {
+                        DebugUtils.logWarning(TAG, "Failed to trigger immediate widget updates: ${e.message}")
                     }
-                    else -> {
-                        Log.d(TAG, "Memory trim event (level: $level) - performing light cleanup")
-                        performMemoryCleanup(aggressive = false)
-                    }
+                    
+                    DebugUtils.logInfo(TAG, "Widget customization initialization completed")
+                    
+                } catch (e: Exception) {
+                    DebugUtils.logError(TAG, "Error initializing widget customizations", e)
                 }
             }
         }
     }
-    
+
     /**
-     * Initialize WorkManager with optimized configuration.
+     * Initialize and schedule background work
      */
-    private fun initializeWorkManager() {
-        try {
-            WorkManager.initialize(this, workManagerConfiguration)
-            Log.d(TAG, "WorkManager initialized successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize WorkManager", e)
-            throw ApplicationInitializationException("WorkManager initialization failed", e)
+    private fun initializeBackgroundWork() {
+        OptimizationUtils.measureOptimizedOperation("background_work_initialization") {
+            try {
+                DebugUtils.logInfo(TAG, "Initializing background work")
+                
+                val workManager = WorkManager.getInstance(this)
+                
+                // Schedule sentence delivery work
+                val workRequest = SentenceDeliveryWorker.createWorkRequest()
+                workManager.enqueueUniquePeriodicWork(
+                    "SentenceDeliveryWork",
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    workRequest
+                )
+                
+                DebugUtils.logInfo(TAG, "Background work scheduled successfully")
+                AppLogger.logInfo(TAG, "Sentence delivery worker scheduled")
+                
+            } catch (e: Exception) {
+                DebugUtils.logError(TAG, "Error initializing background work", e)
+                AppLogger.logError(TAG, "Background work initialization failed", e)
+            }
         }
     }
     
     /**
-     * Initialize other app-level components.
+     * Perform initial application cleanup
      */
-    private fun initializeAppComponents() {
+    private fun performInitialCleanup() {
+        applicationScope.launch {
+            try {
+                DebugUtils.logInfo(TAG, "Performing initial cleanup")
+                
+                // Clean up old temporary files and caches
+                OptimizationUtils.performComprehensiveCleanup(this@GermanLearningApplication, aggressive = false)
+                
+                // Force garbage collection to start with clean memory
+                val memoryFreed = OptimizationUtils.forceGarbageCollectionWithMonitoring()
+                DebugUtils.logInfo(TAG, "Initial cleanup completed: ${memoryFreed.toInt()}MB freed")
+                
+            } catch (e: Exception) {
+                DebugUtils.logError(TAG, "Error during initial cleanup", e)
+            }
+        }
+    }
+    
+    /**
+     * Log comprehensive application health information
+     */
+    private fun logApplicationHealth() {
         try {
-            // Pre-initialize repositories to avoid cold start delays
-            com.germanleraningwidget.data.repository.SentenceRepository.getInstance(this)
+            val healthReport = OptimizationUtils.generateHealthReport(this)
             
-            Log.d(TAG, "App components initialized")
+            DebugUtils.logInfo(TAG, "Application Health Report:")
+            DebugUtils.logInfo(TAG, "- Overall Score: ${healthReport.overallScore}/100")
+            DebugUtils.logInfo(TAG, "- Memory Health: ${healthReport.memoryHealth.score}/100 (${healthReport.memoryHealth.currentUsagePercentage.toInt()}% usage)")
+            DebugUtils.logInfo(TAG, "- Performance Health: ${healthReport.performanceHealth.score}/100")
+            DebugUtils.logInfo(TAG, "- Resource Health: ${healthReport.resourceHealth.score}/100")
+            
+            if (healthReport.recommendations.isNotEmpty()) {
+                DebugUtils.logInfo(TAG, "Health Recommendations:")
+                healthReport.recommendations.forEach { recommendation ->
+                    DebugUtils.logInfo(TAG, "  • $recommendation")
+                }
+            }
+            
+            // Log optimization suggestions
+            val suggestions = OptimizationUtils.getOptimizationSuggestions(this)
+            if (suggestions.isNotEmpty()) {
+                DebugUtils.logInfo(TAG, "Optimization Suggestions:")
+                suggestions.forEach { suggestion ->
+                    DebugUtils.logInfo(TAG, "  • $suggestion")
+                }
+            }
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize app components", e)
-            // Don't throw here - app can still function without pre-initialization
+            DebugUtils.logError(TAG, "Error logging application health", e)
         }
     }
     
     /**
-     * Custom WorkManager configuration with optimized settings.
+     * Schedule periodic health reporting for monitoring
+     */
+    private fun scheduleHealthReporting() {
+        applicationScope.launch {
+            try {
+                // Schedule health reports every hour
+                while (true) {
+                    kotlinx.coroutines.delay(60 * 60 * 1000L) // 1 hour
+                    
+                    val healthReport = OptimizationUtils.generateHealthReport(this@GermanLearningApplication)
+                    
+                    // Only log if there are issues or recommendations
+                    if (healthReport.overallScore < 80 || healthReport.recommendations.isNotEmpty()) {
+                        DebugUtils.logInfo(TAG, "Periodic Health Check - Score: ${healthReport.overallScore}/100")
+                        
+                        if (healthReport.recommendations.isNotEmpty()) {
+                            DebugUtils.logWarning(TAG, "Health recommendations: ${healthReport.recommendations.joinToString("; ")}")
+                        }
+                        
+                        // Perform automatic cleanup if health is poor
+                        if (healthReport.overallScore < 60) {
+                            DebugUtils.logWarning(TAG, "Poor health detected - performing automatic cleanup")
+                            OptimizationUtils.performComprehensiveCleanup(this@GermanLearningApplication, aggressive = true)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                DebugUtils.logError(TAG, "Error in health reporting", e)
+            }
+        }
+    }
+    
+    /**
+     * WorkManager configuration for optimized background processing
      */
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
-            .setMinimumLoggingLevel(if (BuildConfig.DEBUG) Log.DEBUG else Log.INFO)
-            .setExecutor(
-                Executors.newFixedThreadPool(
-                    WORK_MANAGER_THREAD_POOL_SIZE,
-                    { runnable ->
-                        Thread(runnable, "WorkManager-Thread").apply {
-                            priority = Thread.NORM_PRIORITY
-                            isDaemon = false
-                        }
-                    }
-                )
-            )
-            .setTaskExecutor(
-                Executors.newFixedThreadPool(
-                    WORK_MANAGER_THREAD_POOL_SIZE / 2,
-                    { runnable ->
-                        Thread(runnable, "WorkManager-Task-Thread").apply {
-                            priority = Thread.NORM_PRIORITY - 1
-                            isDaemon = false
-                        }
-                    }
-                )
-            )
+            .setMinimumLoggingLevel(if (ENABLE_DEBUG_LOGGING) android.util.Log.DEBUG else android.util.Log.INFO)
+            .setMaxSchedulerLimit(20) // Reasonable limit for background tasks
             .build()
     
     /**
-     * Perform memory cleanup based on memory pressure level.
+     * Handle application termination with cleanup
      */
-    private fun performMemoryCleanup(aggressive: Boolean) {
+    override fun onTerminate() {
+        super.onTerminate()
+        
         try {
-            // Clear repository caches
-            val sentenceRepository = com.germanleraningwidget.data.repository.SentenceRepository
-                .getInstance(this)
-            sentenceRepository.clearCache()
+            DebugUtils.logInfo(TAG, "Application terminating - performing cleanup")
             
-            if (aggressive) {
-                // Suggest garbage collection (though the system ultimately decides)
-                System.gc()
-                
-                Log.d(TAG, "Aggressive memory cleanup completed")
-            } else {
-                Log.d(TAG, "Light memory cleanup completed")
+            // Stop performance monitoring
+            OptimizationUtils.stopMonitoring()
+            PerformanceMonitor.stopMonitoring()
+            
+            // Final cleanup
+            applicationScope.launch {
+                OptimizationUtils.performComprehensiveCleanup(this@GermanLearningApplication, aggressive = false)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to perform memory cleanup", e)
-        }
-    }
-    
-    /**
-     * Get application-level statistics for monitoring.
-     */
-    fun getApplicationStatistics(): ApplicationStatistics {
-        return try {
-            val sentenceRepo = com.germanleraningwidget.data.repository.SentenceRepository.getInstance(this)
-            val repoStats = sentenceRepo.getStatistics()
             
-            ApplicationStatistics(
-                isInitialized = true,
-                workManagerInitialized = true,
-                repositoryStatistics = repoStats,
-                memoryInfo = getMemoryInfo()
-            )
+            DebugUtils.logInfo(TAG, "Application terminated gracefully")
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to get application statistics", e)
-            ApplicationStatistics(
-                isInitialized = false,
-                workManagerInitialized = false,
-                repositoryStatistics = null,
-                memoryInfo = null,
-                error = e.message
-            )
+            DebugUtils.logError(TAG, "Error during application termination", e)
         }
     }
     
     /**
-     * Get memory information for monitoring.
+     * Handle low memory situations
      */
-    private fun getMemoryInfo(): MemoryInfo {
-        val runtime = Runtime.getRuntime()
-        return MemoryInfo(
-            totalMemory = runtime.totalMemory(),
-            freeMemory = runtime.freeMemory(),
-            maxMemory = runtime.maxMemory(),
-            usedMemory = runtime.totalMemory() - runtime.freeMemory()
-        )
+    override fun onLowMemory() {
+        super.onLowMemory()
+        
+        applicationScope.launch {
+            try {
+                DebugUtils.logWarning(TAG, "Low memory detected - performing aggressive cleanup")
+                AppLogger.logWarning(TAG, "Low memory situation - cleaning up")
+                
+                // Perform aggressive cleanup
+                OptimizationUtils.performComprehensiveCleanup(this@GermanLearningApplication, aggressive = true)
+                
+                // Force garbage collection
+                val memoryFreed = OptimizationUtils.forceGarbageCollectionWithMonitoring()
+                DebugUtils.logInfo(TAG, "Low memory cleanup completed: ${memoryFreed.toInt()}MB freed")
+                
+            } catch (e: Exception) {
+                DebugUtils.logError(TAG, "Error during low memory cleanup", e)
+            }
+        }
     }
-    
-    /**
-     * Data classes for application monitoring
-     */
-    data class ApplicationStatistics(
-        val isInitialized: Boolean,
-        val workManagerInitialized: Boolean,
-        val repositoryStatistics: com.germanleraningwidget.data.repository.SentenceRepository.RepositoryStatistics?,
-        val memoryInfo: MemoryInfo?,
-        val error: String? = null
-    )
-    
-    data class MemoryInfo(
-        val totalMemory: Long,
-        val freeMemory: Long,
-        val maxMemory: Long,
-        val usedMemory: Long
-    ) {
-        val memoryUsagePercentage: Double
-            get() = (usedMemory.toDouble() / maxMemory.toDouble()) * 100.0
-    }
-    
-    /**
-     * Custom exception for application initialization errors.
-     */
-    class ApplicationInitializationException(message: String, cause: Throwable? = null) : Exception(message, cause)
 } 

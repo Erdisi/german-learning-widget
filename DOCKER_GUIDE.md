@@ -1,5 +1,15 @@
 # 🐳 Docker Implementation Guide - German Learning Widget
 
+## ⚠️ **IMPORTANT: Apple Silicon Compatibility Notice**
+
+**If you're using an Apple Silicon Mac (M1/M2/M3), Docker builds will fail due to AAPT2 architectural incompatibility.**
+
+- **✅ Recommended**: Use host system builds (work perfectly - 19 seconds for clean assembleDebug)
+- **⚠️ Alternative**: Use CI/CD pipeline for automated builds
+- **❌ Not Recommended**: Local Docker builds on Apple Silicon
+
+For non-Apple Silicon platforms (Intel Mac, Linux, Windows WSL2), Docker works excellently.
+
 ## 📋 Overview
 
 This guide documents the complete Docker implementation for the German Learning Widget project, providing a professional CI/CD pipeline and consistent build environment.

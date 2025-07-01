@@ -303,7 +303,7 @@ object ColorUsageExamples {
                     Spacer(modifier = Modifier.height(12.dp))
                     Surface(
                         color = ThemePresets.Learning.getTopicBackgroundColor(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
                             text = topic,
@@ -335,7 +335,7 @@ object ColorUsageExamples {
         Surface(
             modifier = modifier,
             color = color.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.3f))
         ) {
             Text(

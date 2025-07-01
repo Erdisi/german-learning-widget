@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Base Android Environment
 # =============================================================================
-FROM openjdk:17-jdk-slim as android-base
+FROM openjdk:17-jdk-slim AS android-base
 
 # Set environment variables
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
@@ -61,7 +61,7 @@ ENV GRADLE_OPTS="$GRADLE_OPTS -Dandroid.aapt2FromMavenOverride=/opt/android-sdk/
 # =============================================================================
 # Stage 2: Development Environment
 # =============================================================================
-FROM android-base as development
+FROM android-base AS development
 
 # Install additional development tools
 RUN apt-get update && apt-get install -y \
@@ -90,7 +90,7 @@ RUN ./gradlew --version
 # =============================================================================
 # Stage 3: CI/CD Build Environment
 # =============================================================================
-FROM android-base as ci-build
+FROM android-base AS ci-build
 
 # Set working directory
 WORKDIR /app
@@ -125,7 +125,7 @@ COPY app/proguard-rules.pro app/
 # =============================================================================
 # Stage 4: Production Build
 # =============================================================================
-FROM ci-build as production
+FROM ci-build AS production
 
 # Build arguments
 ARG BUILD_TYPE=release
@@ -162,7 +162,7 @@ RUN cp app/build/outputs/bundle/*/*.aab /output/ 2>/dev/null || true
 # =============================================================================
 # Stage 5: Final Runtime Image
 # =============================================================================
-FROM openjdk:17-jre-slim as runtime
+FROM openjdk:17-jre-slim AS runtime
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \

@@ -40,18 +40,20 @@ import com.germanleraningwidget.ui.theme.*
 import kotlinx.coroutines.launch
 
 /**
- * Widget Details Customization Screen - AUTO-SAVE VERSION
+ * Widget Details Customization Screen - SIMPLIFIED VERSION
  * 
  * Features:
  * - Background color selection with color palette
- * - German text size adjustment  
- * - Translated text size adjustment
- * - Text contrast options
- * - Sentences per day configuration
  * - Live preview of changes
  * - AUTOMATIC SAVING: Changes are saved immediately when made
  * - Real-time feedback with success/error messages
  * - Reset to defaults functionality
+ * 
+ * Simplified Approach:
+ * - REMOVED: Text contrast options (now fixed at Normal)
+ * - REMOVED: Sentences per day configuration (now fixed at 10/day)
+ * - REMOVED: Update interval settings (now fixed at 90 minutes)
+ * - REMOVED: Complex text sizing controls (auto-sizing only)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,10 +81,8 @@ fun WidgetDetailsCustomizationScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
-    // Loading states for individual operations
+    // Loading state for background color operations
     var isSavingBackground by remember { mutableStateOf(false) }
-    var isSavingContrast by remember { mutableStateOf(false) }
-    var isSavingSentencesPerDay by remember { mutableStateOf(false) }
     
     // Auto-hide success messages after 2 seconds
     LaunchedEffect(successMessage) {
@@ -100,7 +100,7 @@ fun WidgetDetailsCustomizationScreen(
         }
     }
     
-    // Auto-save functions for each customization type
+    // Auto-save function for background color
     fun saveBackgroundColor(color: WidgetBackgroundColor) {
         scope.launch {
             isSavingBackground = true
@@ -111,6 +111,8 @@ fun WidgetDetailsCustomizationScreen(
                 val result = widgetCustomizationRepository.updateWidgetCustomization(updatedCustomization)
                 
                 if (result.isSuccess) {
+                    // CRITICAL FIX: Pass the fresh customization data to ensure immediate update
+                    com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerImmediateWidgetUpdateWithData(context, widgetType, updatedCustomization)
                     successMessage = "✅ Background color updated!"
                 } else {
                     errorMessage = "❌ Failed to update background color"
@@ -119,50 +121,6 @@ fun WidgetDetailsCustomizationScreen(
                 errorMessage = "❌ Error updating background: ${e.message}"
             } finally {
                 isSavingBackground = false
-            }
-        }
-    }
-    
-    fun saveTextContrast(contrast: WidgetTextContrast) {
-        scope.launch {
-            isSavingContrast = true
-            try {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                
-                val updatedCustomization = currentCustomization.copy(textContrast = contrast)
-                val result = widgetCustomizationRepository.updateWidgetCustomization(updatedCustomization)
-                
-                if (result.isSuccess) {
-                    successMessage = "✅ Text contrast updated!"
-                } else {
-                    errorMessage = "❌ Failed to update text contrast"
-                }
-            } catch (e: Exception) {
-                errorMessage = "❌ Error updating contrast: ${e.message}"
-            } finally {
-                isSavingContrast = false
-            }
-        }
-    }
-    
-    fun saveSentencesPerDay(count: Int) {
-        scope.launch {
-            isSavingSentencesPerDay = true
-            try {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                
-                val updatedCustomization = currentCustomization.copy(sentencesPerDay = count)
-                val result = widgetCustomizationRepository.updateWidgetCustomization(updatedCustomization)
-                
-                if (result.isSuccess) {
-                    successMessage = "✅ Update frequency changed!"
-                } else {
-                    errorMessage = "❌ Failed to update frequency"
-                }
-            } catch (e: Exception) {
-                errorMessage = "❌ Error updating frequency: ${e.message}"
-            } finally {
-                isSavingSentencesPerDay = false
             }
         }
     }
@@ -177,7 +135,7 @@ fun WidgetDetailsCustomizationScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
-                        if (isSavingBackground || isSavingContrast || isSavingSentencesPerDay) {
+                        if (isSavingBackground) {
                             Text(
                                 text = "Saving changes...",
                                 style = MaterialTheme.typography.labelSmall,
@@ -201,7 +159,7 @@ fun WidgetDetailsCustomizationScreen(
                 },
                 actions = {
                     // Auto-save indicator
-                    if (isSavingBackground || isSavingContrast || isSavingSentencesPerDay) {
+                    if (isSavingBackground) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .size(20.dp)
@@ -230,7 +188,7 @@ fun WidgetDetailsCustomizationScreen(
             contentPadding = PaddingValues(UnifiedDesign.ContentPadding),
             verticalArrangement = Arrangement.spacedBy(UnifiedDesign.ContentGap)
         ) {
-            // Auto-Save Info Banner
+            // Simplified Auto-Save Info Banner
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -238,23 +196,43 @@ fun WidgetDetailsCustomizationScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                     )
                 ) {
-                    Row(
-                        modifier = Modifier.padding(UnifiedDesign.ContentPadding),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(UnifiedDesign.ContentPadding)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Auto-Save Enabled: Changes are saved automatically as you make them",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Auto-Save Enabled: Changes are saved automatically",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Schedule,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Updates every 90 minutes • 10 sentences per day • Normal text contrast",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -338,36 +316,8 @@ fun WidgetDetailsCustomizationScreen(
                     }
                 )
             }
-            
-            // Sentences per Day Section
-            item {
-                SentencesPerDaySection(
-                    currentSentencesPerDay = currentCustomization.sentencesPerDay,
-                    isLoading = isSavingSentencesPerDay,
-                    onSentencesPerDaySelected = { count ->
-                        if (!isSavingSentencesPerDay) {
-                            saveSentencesPerDay(count)
-                        }
-                    }
-                )
-            }
-            
-            // Text Contrast Section
-            item {
-                TextContrastSection(
-                    currentContrast = currentCustomization.textContrast,
-                    isLoading = isSavingContrast,
-                    onContrastSelected = { contrast ->
-                        if (!isSavingContrast) {
-                            saveTextContrast(contrast)
-                        }
-                    }
-                )
-            }
         }
     }
-    
-
 }
 
 /**
@@ -502,21 +452,40 @@ private fun MainWidgetPreview(customization: WidgetCustomization) {
                     .padding(horizontal = 6.dp, vertical = 3.dp)
             )
             
-            // Save button placeholder
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .background(
-                        Color.White.copy(alpha = 0.15f),
-                        RoundedCornerShape(6.dp)
-                    ),
-                contentAlignment = Alignment.Center
+            // Action buttons
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "♡",
-                    fontSize = 12.sp,
-                    color = getContrastingTextColor(customization.backgroundColor.centerColor)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.15f),
+                            RoundedCornerShape(6.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "→",
+                        fontSize = 12.sp,
+                        color = getContrastingTextColor(customization.backgroundColor.centerColor)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            Color.White.copy(alpha = 0.15f),
+                            RoundedCornerShape(6.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "♥",
+                        fontSize = 12.sp,
+                        color = getContrastingTextColor(customization.backgroundColor.centerColor)
+                    )
+                }
             }
         }
     }
@@ -537,7 +506,7 @@ private fun BookmarksWidgetPreview(customization: WidgetCustomization) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "📚 Bookmarks",
+                text = "💙 Bookmarks",
                 fontSize = (14 * 0.9f).sp,
                 fontWeight = FontWeight.Bold,
                 color = getContrastingTextColor(customization.backgroundColor.centerColor)
@@ -900,227 +869,6 @@ private fun ColorSelectionCircle(
                 tint = getContrastingTextColor(color.centerColor).copy(alpha = if (isEnabled) 1f else 0.5f),
                 modifier = Modifier.size(20.dp)
             )
-        }
-    }
-}
-
-
-
-/**
- * Text Contrast Selection Component.
- */
-@Composable
-private fun TextContrastSection(
-    currentContrast: WidgetTextContrast,
-    isLoading: Boolean,
-    onContrastSelected: (WidgetTextContrast) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isLoading) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else CardDefaults.cardColors().containerColor
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Contrast,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Text Contrast",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                
-                if (isLoading) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (isLoading) "Saving text contrast..." else "Adjust text contrast for better readability",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isLoading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Contrast Options
-            WidgetTextContrast.getAllContrasts().forEach { contrast ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = contrast == currentContrast,
-                            enabled = !isLoading,
-                            onClick = { if (!isLoading) onContrastSelected(contrast) }
-                        )
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = contrast == currentContrast,
-                        enabled = !isLoading,
-                        onClick = { if (!isLoading) onContrastSelected(contrast) }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = contrast.displayName,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (contrast == currentContrast) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isLoading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = contrast.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Sentences per Day Selection Component.
- */
-@Composable
-private fun SentencesPerDaySection(
-    currentSentencesPerDay: Int,
-    isLoading: Boolean,
-    onSentencesPerDaySelected: (Int) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isLoading) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else CardDefaults.cardColors().containerColor
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Schedule,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Sentences per Day",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                
-                if (isLoading) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (isLoading) "Saving update frequency..." else "Control how often your widget shows new sentences throughout the day",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isLoading) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Slider
-            Column {
-                Text(
-                    text = "Select sentences per day: $currentSentencesPerDay",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isLoading) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Slider(
-                    value = currentSentencesPerDay.toFloat(),
-                    onValueChange = { value ->
-                        if (!isLoading) {
-                            onSentencesPerDaySelected(value.toInt())
-                        }
-                    },
-                    enabled = !isLoading,
-                    valueRange = WidgetCustomization.MIN_SENTENCES_PER_DAY.toFloat()..WidgetCustomization.MAX_SENTENCES_PER_DAY.toFloat(),
-                    steps = WidgetCustomization.MAX_SENTENCES_PER_DAY - WidgetCustomization.MIN_SENTENCES_PER_DAY - 1,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                // Range labels
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "${WidgetCustomization.MIN_SENTENCES_PER_DAY} per day",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "${WidgetCustomization.MAX_SENTENCES_PER_DAY} per day",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Quick Selection Buttons
-            Text(
-                text = "Quick Select:",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isLoading) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(listOf(1, 3, 5, 10)) { count ->
-                    FilterChip(
-                        selected = currentSentencesPerDay == count,
-                        enabled = !isLoading,
-                        onClick = { if (!isLoading) onSentencesPerDaySelected(count) },
-                        label = {
-                            Text(
-                                text = "$count/day",
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
-                        leadingIcon = if (currentSentencesPerDay == count) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        } else null
-                    )
-                }
-            }
         }
     }
 }

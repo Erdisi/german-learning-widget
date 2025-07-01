@@ -156,6 +156,23 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             isHeroWidget = true
         )
         
+        // Apply colors to secondary text elements (title, counter, topic)
+        WidgetCustomizationHelper.applySecondaryTextColors(
+            views, customization,
+            titleTextViewId = R.id.widget_hero_title, // Now includes the hero title
+            levelTextViewId = null,
+            topicTextViewId = R.id.widget_hero_topic,
+            counterTextViewId = R.id.widget_hero_counter
+        )
+        
+        // Apply dynamic backgrounds for better visibility
+        WidgetCustomizationHelper.applyDynamicBackgrounds(
+            views, customization,
+            topicTextViewId = R.id.widget_hero_topic,
+            levelTextViewId = null,
+            buttonId = R.id.widget_hero_next_button // Apply to next button for visibility
+        )
+        
         // Update preview texts and dots
         updatePreviewTexts(views, bookmarkedSentences, currentIndex)
         updatePreviewDots(views, currentIndex, totalCount)
@@ -232,6 +249,23 @@ class BookmarksHeroWidget : AppWidgetProvider() {
             R.id.widget_hero_german_text, R.id.widget_hero_translation,
             "No bookmarks yet", "Save sentences to see them here",
             isHeroWidget = true
+        )
+        
+        // Apply colors to secondary text elements (title, counter, topic)
+        WidgetCustomizationHelper.applySecondaryTextColors(
+            views, customization,
+            titleTextViewId = R.id.widget_hero_title, // Now includes the hero title
+            levelTextViewId = null,
+            topicTextViewId = R.id.widget_hero_topic,
+            counterTextViewId = R.id.widget_hero_counter
+        )
+        
+        // Apply dynamic backgrounds for better visibility
+        WidgetCustomizationHelper.applyDynamicBackgrounds(
+            views, customization,
+            topicTextViewId = R.id.widget_hero_topic,
+            levelTextViewId = null,
+            buttonId = R.id.widget_hero_next_button
         )
         
         // Clear preview texts and dots

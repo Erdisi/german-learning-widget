@@ -1,12 +1,11 @@
 package com.germanleraningwidget.data.repository
 
 import android.content.Context
-import android.util.Log
+import com.germanleraningwidget.util.DebugUtils
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.germanleraningwidget.data.model.*
-import com.germanleraningwidget.worker.SentenceDeliveryWorker
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +20,11 @@ private val Context.widgetCustomizationDataStore: DataStore<Preferences> by pref
 
 /**
  * Repository for managing widget customization settings with DataStore.
+ * 
+ * Simplified for fixed schedule approach:
+ * - No sentences per day configuration (fixed at 10/day)
+ * - No dynamic worker scheduling (fixed 90-minute intervals)
+ * - Only color and contrast customization
  * 
  * Provides thread-safe operations for:
  * - Reading and writing widget customizations
@@ -54,24 +58,21 @@ class WidgetCustomizationRepository(
     private val writeMutex = Mutex()
     
     /**
-     * Preference keys for widget customizations
-     * Note: Text size keys removed as auto-sizing is now implemented
+     * Preference keys for widget customizations.
+     * Simplified to only include color and contrast settings.
      */
     private object PreferencesKeys {
         // Main Widget
         val MAIN_BACKGROUND_COLOR = stringPreferencesKey("main_background_color")
         val MAIN_TEXT_CONTRAST = stringPreferencesKey("main_text_contrast")
-        val MAIN_SENTENCES_PER_DAY = intPreferencesKey("main_sentences_per_day")
         
         // Bookmarks Widget
         val BOOKMARKS_BACKGROUND_COLOR = stringPreferencesKey("bookmarks_background_color")
         val BOOKMARKS_TEXT_CONTRAST = stringPreferencesKey("bookmarks_text_contrast")
-        val BOOKMARKS_SENTENCES_PER_DAY = intPreferencesKey("bookmarks_sentences_per_day")
         
         // Hero Widget
         val HERO_BACKGROUND_COLOR = stringPreferencesKey("hero_background_color")
         val HERO_TEXT_CONTRAST = stringPreferencesKey("hero_text_contrast")
-        val HERO_SENTENCES_PER_DAY = intPreferencesKey("hero_sentences_per_day")
     }
     
     /**
@@ -79,14 +80,14 @@ class WidgetCustomizationRepository(
      */
     val allWidgetCustomizations: Flow<AllWidgetCustomizations> = context.widgetCustomizationDataStore.data
         .catch { exception ->
-            Log.e(TAG, "Error reading widget customizations", exception)
+            DebugUtils.logError(TAG, "Error reading widget customizations", exception)
             emit(emptyPreferences())
         }
         .map { preferences ->
             try {
                 mapPreferencesToCustomizations(preferences)
             } catch (e: Exception) {
-                Log.e(TAG, "Error mapping widget customizations", e)
+                DebugUtils.logError(TAG, "Error mapping widget customizations", e)
                 AllWidgetCustomizations.createDefault()
             }
         }
@@ -100,6 +101,7 @@ class WidgetCustomizationRepository(
     
     /**
      * Map DataStore preferences to AllWidgetCustomizations.
+     * Simplified to only handle color and contrast settings.
      */
     private fun mapPreferencesToCustomizations(preferences: Preferences): AllWidgetCustomizations {
         return AllWidgetCustomizations(
@@ -110,8 +112,7 @@ class WidgetCustomizationRepository(
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.MAIN_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
-                ),
-                sentencesPerDay = preferences[PreferencesKeys.MAIN_SENTENCES_PER_DAY] ?: WidgetCustomization.DEFAULT_SENTENCES_PER_DAY
+                )
             ),
             bookmarksWidget = WidgetCustomization(
                 widgetType = WidgetType.BOOKMARKS,
@@ -120,8 +121,7 @@ class WidgetCustomizationRepository(
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
-                ),
-                sentencesPerDay = preferences[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] ?: WidgetCustomization.DEFAULT_SENTENCES_PER_DAY
+                )
             ),
             heroWidget = WidgetCustomization(
                 widgetType = WidgetType.HERO,
@@ -130,14 +130,14 @@ class WidgetCustomizationRepository(
                 ),
                 textContrast = WidgetTextContrast.fromKey(
                     preferences[PreferencesKeys.HERO_TEXT_CONTRAST] ?: WidgetTextContrast.NORMAL.key
-                ),
-                sentencesPerDay = preferences[PreferencesKeys.HERO_SENTENCES_PER_DAY] ?: WidgetCustomization.DEFAULT_SENTENCES_PER_DAY
+                )
             )
         )
     }
     
     /**
      * Update customization for a specific widget.
+     * Simplified to only handle color and contrast updates.
      */
     suspend fun updateWidgetCustomization(customization: WidgetCustomization): Result<Unit> {
         return writeMutex.withLock {
@@ -154,41 +154,29 @@ class WidgetCustomizationRepository(
                         WidgetType.MAIN -> {
                             prefs[PreferencesKeys.MAIN_BACKGROUND_COLOR] = customization.backgroundColor.key
                             prefs[PreferencesKeys.MAIN_TEXT_CONTRAST] = customization.textContrast.key
-                            prefs[PreferencesKeys.MAIN_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                         WidgetType.BOOKMARKS -> {
                             prefs[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] = customization.backgroundColor.key
                             prefs[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] = customization.textContrast.key
-                            prefs[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                         WidgetType.HERO -> {
                             prefs[PreferencesKeys.HERO_BACKGROUND_COLOR] = customization.backgroundColor.key
                             prefs[PreferencesKeys.HERO_TEXT_CONTRAST] = customization.textContrast.key
-                            prefs[PreferencesKeys.HERO_SENTENCES_PER_DAY] = customization.sentencesPerDay
                         }
                     }
                 }
                 
-                // Trigger simple widget update using new helper
-                com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, customization.widgetType)
+                // CRITICAL FIX: Use immediate update with data to ensure widgets get fresh customization
+                com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerImmediateWidgetUpdateWithData(context, customization.widgetType, customization)
                 
-                // Reschedule worker with new frequency settings
-                try {
-                    SentenceDeliveryWorker.scheduleWork(context)
-                    Log.d(TAG, "Worker rescheduled with updated frequency settings")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to reschedule worker after customization update", e)
-                    // Don't fail the entire operation if worker scheduling fails
-                }
-                
-                Log.d(TAG, "Widget customization updated successfully for ${customization.widgetType.displayName}")
+                DebugUtils.logInfo(TAG, "Widget customization updated successfully for ${customization.widgetType.displayName}")
                 Result.success(Unit)
                 
             } catch (e: IOException) {
-                Log.e(TAG, "IO error updating widget customization", e)
+                DebugUtils.logError(TAG, "IO error updating widget customization", e)
                 Result.failure(Exception("Failed to save customization due to IO error", e))
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error updating widget customization", e)
+                DebugUtils.logError(TAG, "Unexpected error updating widget customization", e)
                 Result.failure(Exception("Failed to save customization: ${e.message}", e))
             }
         }
@@ -196,6 +184,7 @@ class WidgetCustomizationRepository(
     
     /**
      * Update all widget customizations atomically.
+     * Simplified to only handle color and contrast updates.
      */
     suspend fun updateAllWidgetCustomizations(customizations: AllWidgetCustomizations): Result<Unit> {
         return writeMutex.withLock {
@@ -211,41 +200,27 @@ class WidgetCustomizationRepository(
                     // Main widget
                     prefs[PreferencesKeys.MAIN_BACKGROUND_COLOR] = customizations.mainWidget.backgroundColor.key
                     prefs[PreferencesKeys.MAIN_TEXT_CONTRAST] = customizations.mainWidget.textContrast.key
-                    prefs[PreferencesKeys.MAIN_SENTENCES_PER_DAY] = customizations.mainWidget.sentencesPerDay
                     
                     // Bookmarks widget
                     prefs[PreferencesKeys.BOOKMARKS_BACKGROUND_COLOR] = customizations.bookmarksWidget.backgroundColor.key
                     prefs[PreferencesKeys.BOOKMARKS_TEXT_CONTRAST] = customizations.bookmarksWidget.textContrast.key
-                    prefs[PreferencesKeys.BOOKMARKS_SENTENCES_PER_DAY] = customizations.bookmarksWidget.sentencesPerDay
                     
                     // Hero widget
                     prefs[PreferencesKeys.HERO_BACKGROUND_COLOR] = customizations.heroWidget.backgroundColor.key
                     prefs[PreferencesKeys.HERO_TEXT_CONTRAST] = customizations.heroWidget.textContrast.key
-                    prefs[PreferencesKeys.HERO_SENTENCES_PER_DAY] = customizations.heroWidget.sentencesPerDay
                 }
                 
-                // Trigger updates for all widget types using new helper
-                com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, WidgetType.MAIN)
-                com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, WidgetType.BOOKMARKS)
-                com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerWidgetUpdate(context, WidgetType.HERO)
+                // CRITICAL FIX: Use immediate updates for all widget types to ensure fresh data
+                com.germanleraningwidget.widget.WidgetCustomizationHelper.triggerImmediateAllWidgetUpdates(context)
                 
-                // Reschedule worker with new frequency settings
-                try {
-                    SentenceDeliveryWorker.scheduleWork(context)
-                    Log.d(TAG, "Worker rescheduled with updated frequency settings")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to reschedule worker after all customizations update", e)
-                    // Don't fail the entire operation if worker scheduling fails
-                }
-                
-                Log.d(TAG, "All widget customizations updated successfully")
+                DebugUtils.logInfo(TAG, "All widget customizations updated successfully")
                 Result.success(Unit)
                 
             } catch (e: IOException) {
-                Log.e(TAG, "IO error updating all widget customizations", e)
+                DebugUtils.logError(TAG, "IO error updating all widget customizations", e)
                 Result.failure(Exception("Failed to save customizations due to IO error", e))
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error updating all widget customizations", e)
+                DebugUtils.logError(TAG, "Unexpected error updating all widget customizations", e)
                 Result.failure(Exception("Failed to save customizations: ${e.message}", e))
             }
         }
@@ -259,7 +234,7 @@ class WidgetCustomizationRepository(
             val customizations = allWidgetCustomizations.first()
             Result.success(customizations)
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting current customizations", e)
+            DebugUtils.logError(TAG, "Error getting current customizations", e)
             Result.failure(Exception("Failed to read customizations", e))
         }
     }
@@ -291,13 +266,13 @@ class WidgetCustomizationRepository(
         return writeMutex.withLock {
             try {
                 context.widgetCustomizationDataStore.edit(writeBlock)
-                Log.d(TAG, "Successfully completed: $operation")
+                DebugUtils.logInfo(TAG, "Successfully completed: $operation")
                 Result.success(Unit)
             } catch (e: IOException) {
-                Log.e(TAG, "IO error during $operation", e)
+                DebugUtils.logError(TAG, "IO error during $operation", e)
                 Result.failure(Exception("IO error during $operation", e))
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error during $operation", e)
+                DebugUtils.logError(TAG, "Unexpected error during $operation", e)
                 Result.failure(Exception("Failed to $operation", e))
             }
         }

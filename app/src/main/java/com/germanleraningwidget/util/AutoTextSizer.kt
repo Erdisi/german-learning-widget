@@ -13,28 +13,31 @@ import kotlin.math.min
  * 
  * Since Android widgets run in RemoteViews with limited measurement capabilities,
  * we use character-based heuristics and pre-calculated sizing formulas.
+ * 
+ * ENHANCED: Increased font sizes to take advantage of optimized layout with 
+ * topic/bookmark elements moved to bottom, providing more space for text content.
  */
 object AutoTextSizer {
     
-    // Base text sizes (SP)
-    private const val BASE_GERMAN_SIZE = 18f
-    private const val BASE_TRANSLATION_SIZE = 14f
-    private const val HERO_BASE_GERMAN_SIZE = 22f
-    private const val HERO_BASE_TRANSLATION_SIZE = 16f
+    // Base text sizes (SP) - INCREASED for better visibility with more space
+    private const val BASE_GERMAN_SIZE = 22f        // Increased from 18f
+    private const val BASE_TRANSLATION_SIZE = 17f   // Increased from 14f
+    private const val HERO_BASE_GERMAN_SIZE = 26f   // Increased from 22f
+    private const val HERO_BASE_TRANSLATION_SIZE = 19f // Increased from 16f
     
-    // Size constraints
-    private const val MIN_GERMAN_SIZE = 14f
-    private const val MAX_GERMAN_SIZE = 24f
-    private const val MIN_TRANSLATION_SIZE = 11f
-    private const val MAX_TRANSLATION_SIZE = 18f
+    // Size constraints - EXPANDED ranges for better text scaling
+    private const val MIN_GERMAN_SIZE = 16f         // Increased from 14f
+    private const val MAX_GERMAN_SIZE = 30f         // Increased from 24f
+    private const val MIN_TRANSLATION_SIZE = 13f    // Increased from 11f
+    private const val MAX_TRANSLATION_SIZE = 22f    // Increased from 18f
     
-    // Hero widget constraints
-    private const val MIN_HERO_GERMAN_SIZE = 18f
-    private const val MAX_HERO_GERMAN_SIZE = 28f
-    private const val MIN_HERO_TRANSLATION_SIZE = 14f
-    private const val MAX_HERO_TRANSLATION_SIZE = 20f
+    // Hero widget constraints - ENHANCED for prominence
+    private const val MIN_HERO_GERMAN_SIZE = 20f    // Increased from 18f
+    private const val MAX_HERO_GERMAN_SIZE = 34f    // Increased from 28f
+    private const val MIN_HERO_TRANSLATION_SIZE = 16f // Increased from 14f
+    private const val MAX_HERO_TRANSLATION_SIZE = 24f // Increased from 20f
     
-    // Character length thresholds for scaling
+    // Character length thresholds for scaling (unchanged - work well)
     private const val SHORT_TEXT_THRESHOLD = 15
     private const val MEDIUM_TEXT_THRESHOLD = 30
     private const val LONG_TEXT_THRESHOLD = 50
@@ -42,6 +45,7 @@ object AutoTextSizer {
     
     /**
      * Calculate optimal text sizes for regular widgets.
+     * ENHANCED: Now uses larger base sizes for better readability.
      */
     fun calculateTextSizes(
         germanText: String,
@@ -68,8 +72,8 @@ object AutoTextSizer {
         val germanSize = (baseGermanSize * scaleFactor).coerceIn(MIN_GERMAN_SIZE, MAX_GERMAN_SIZE)
         val translationSize = (baseTranslationSize * scaleFactor).coerceIn(MIN_TRANSLATION_SIZE, MAX_TRANSLATION_SIZE)
         
-        // Ensure German text is always larger than translation
-        val finalTranslationSize = min(translationSize, germanSize - 2f)
+        // Ensure German text is always larger than translation (minimum 3sp difference)
+        val finalTranslationSize = min(translationSize, germanSize - 3f)
         
         return TextSizes(
             germanSize = germanSize,
@@ -79,6 +83,7 @@ object AutoTextSizer {
     
     /**
      * Calculate optimal text sizes for hero widgets (larger display).
+     * ENHANCED: Now uses significantly larger base sizes for hero prominence.
      */
     fun calculateHeroTextSizes(
         germanText: String,
@@ -103,8 +108,8 @@ object AutoTextSizer {
         val germanSize = (HERO_BASE_GERMAN_SIZE * scaleFactor).coerceIn(MIN_HERO_GERMAN_SIZE, MAX_HERO_GERMAN_SIZE)
         val translationSize = (HERO_BASE_TRANSLATION_SIZE * scaleFactor).coerceIn(MIN_HERO_TRANSLATION_SIZE, MAX_HERO_TRANSLATION_SIZE)
         
-        // Ensure German text is always larger than translation
-        val finalTranslationSize = min(translationSize, germanSize - 3f)
+        // Ensure German text is always larger than translation (minimum 4sp difference for hero)
+        val finalTranslationSize = min(translationSize, germanSize - 4f)
         
         return TextSizes(
             germanSize = germanSize,
@@ -114,6 +119,7 @@ object AutoTextSizer {
     
     /**
      * Calculate text sizes with advanced heuristics considering word complexity.
+     * ENHANCED: Works with the new larger base sizes and improved constraints.
      */
     fun calculateAdvancedTextSizes(
         germanText: String,
@@ -175,12 +181,13 @@ object AutoTextSizer {
         
         /**
          * Get display description of the sizing.
+         * UPDATED: Adjusted thresholds for new larger font sizes.
          */
         fun getDescription(): String {
             return when {
-                germanSize >= 22f -> "Large text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
-                germanSize >= 18f -> "Medium text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
-                germanSize >= 16f -> "Standard text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
+                germanSize >= 26f -> "Large text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
+                germanSize >= 22f -> "Medium text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
+                germanSize >= 18f -> "Standard text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
                 else -> "Small text (${germanSize.toInt()}sp / ${translationSize.toInt()}sp)"
             }
         }

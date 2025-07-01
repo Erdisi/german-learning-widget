@@ -80,8 +80,24 @@ data class GermanSentence(
     
     /**
      * Checks if this sentence is suitable for the given criteria efficiently.
-     * Optimized version that works with string level comparison.
+     * 
+     * ⚠️ DEPRECATED: This method shows sentences at OR BELOW the target level.
+     * For exact level matching (user selections), use direct level/topic comparison instead.
+     * 
+     * Migration Guide:
+     * - Replace: sentence.matchesCriteria(userLevel, userTopics)
+     * - With: sentence.level == userLevel && sentence.topic in userTopics
+     * 
+     * @deprecated Use exact level/topic matching for user preference filtering
+     * @param targetLevel The target German level
+     * @param allowedTopics Set of allowed topics
+     * @return true if sentence matches criteria (at or below level and topic matches)
      */
+    @Deprecated(
+        message = "Use exact level/topic matching instead: sentence.level == targetLevel && sentence.topic in allowedTopics",
+        replaceWith = ReplaceWith("level == targetLevel && topic in allowedTopics"),
+        level = DeprecationLevel.WARNING
+    )
     fun matchesCriteria(targetLevel: String, allowedTopics: Set<String>): Boolean {
         // Fast path: check level first (cheaper operation)
         // Compare level strings - sentences at or below target level are suitable

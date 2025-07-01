@@ -2,7 +2,7 @@ package com.germanleraningwidget
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
+import com.germanleraningwidget.util.DebugUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -117,57 +118,29 @@ class MainActivity : ComponentActivity() {
         try {
             installSplashScreen()
         } catch (e: Exception) {
-            Log.w(TAG, "Splash screen not available on this Android version", e)
+            DebugUtils.logWarning(TAG, "Splash screen not available on this Android version", e)
         }
         
         super.onCreate(savedInstanceState)
         
-        try {
-            Log.d(TAG, "MainActivity onCreate")
+        setContent {
+            val appSettingsRepository = remember { AppSettingsRepository(this@MainActivity) }
+            val appSettings by appSettingsRepository.appSettings.collectAsStateWithLifecycle(
+                initialValue = com.germanleraningwidget.data.model.AppSettings()
+            )
             
-            setContent {
-                val appSettingsRepository = AppSettingsRepository(this@MainActivity)
-                val appSettings by appSettingsRepository.appSettings.collectAsStateWithLifecycle(
-                    initialValue = com.germanleraningwidget.data.model.AppSettings()
-                )
-                
-                val darkTheme = when (appSettings.isDarkModeEnabled) {
-                    true -> true
-                    false -> false
-                    null -> isSystemInDarkTheme() // Follow system setting if not explicitly set
-                }
-                
-                GermanLearningWidgetTheme(darkTheme = darkTheme) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        GermanLearningApp()
-                    }
-                }
+            val darkTheme = when (appSettings.isDarkModeEnabled) {
+                true -> true
+                false -> false
+                null -> isSystemInDarkTheme()
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to set content", e)
-            // Fallback to basic UI
-            setContent {
-                val appSettingsRepository = AppSettingsRepository(this@MainActivity)
-                val appSettings by appSettingsRepository.appSettings.collectAsStateWithLifecycle(
-                    initialValue = com.germanleraningwidget.data.model.AppSettings()
-                )
-                
-                val darkTheme = when (appSettings.isDarkModeEnabled) {
-                    true -> true
-                    false -> false
-                    null -> isSystemInDarkTheme() // Follow system setting if not explicitly set
-                }
-                
-                GermanLearningWidgetTheme(darkTheme = darkTheme) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        GermanLearningApp()
-                    }
+            
+            GermanLearningWidgetTheme(darkTheme = darkTheme) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    GermanLearningApp()
                 }
             }
         }
@@ -176,13 +149,13 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        Log.d(TAG, "New intent received: ${intent.getStringExtra(EXTRA_NAVIGATE_TO)}")
+        DebugUtils.logInfo(TAG, "New intent received: ${intent.getStringExtra(EXTRA_NAVIGATE_TO)}")
         
         // Handle immediate widget navigation for new intents
         intent.getStringExtra(EXTRA_NAVIGATE_TO)?.let { navigationTarget ->
             when (navigationTarget) {
                 "home", "bookmarks" -> {
-                    Log.d(TAG, "Handling immediate navigation to: $navigationTarget")
+                    DebugUtils.logInfo(TAG, "Handling immediate navigation to: $navigationTarget")
                     // The LaunchedEffect in GermanLearningApp will handle this
                 }
             }
@@ -191,19 +164,18 @@ class MainActivity : ComponentActivity() {
     
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "MainActivity onResume")
     }
     
     override fun onPause() {
         super.onPause()
-        Log.d(TAG, "MainActivity onPause")
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "MainActivity onDestroy")
+        DebugUtils.logInfo(TAG, "MainActivity onDestroy")
     }
 }
+
 
 /**
  * Main app composable with navigation and state management.
@@ -233,7 +205,7 @@ fun GermanLearningApp() {
         try {
             AppModule.createRepositoryContainer(context)
         } catch (e: Exception) {
-            Log.e("Repository", "Failed to initialize repositories", e)
+            DebugUtils.logError("Repository", "Failed to initialize repositories", e)
             appError = "Failed to initialize app: ${e.message}"
             null
         }
@@ -291,22 +263,20 @@ fun GermanLearningApp() {
                             popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
                             launchSingleTop = true
                         }
-                        Log.d("Navigation", "Navigated to bookmarks from widget")
                     }
                     "home" -> {
                         navController.navigate(NavigationConfig.ROUTE_HOME) {
                             popUpTo(NavigationConfig.ROUTE_HOME) { inclusive = false }
                             launchSingleTop = true
                         }
-                        Log.d("Navigation", "Navigated to home from widget")
                     }
                 }
                 
                 // Clear the intent after handling it
                 activity?.intent?.removeExtra(MainActivity.EXTRA_NAVIGATE_TO)
             }
-        } catch (e: Exception) {
-            Log.e("Navigation", "Failed to handle widget navigation", e)
+                        } catch (e: Exception) {
+                    DebugUtils.logError("Navigation", "Failed to handle widget navigation", e)
             appError = "Navigation error: ${e.message}"
         }
     }
@@ -428,13 +398,13 @@ private fun handleOnboardingComplete(
     try {
         // Schedule work when onboarding is completed
         SentenceDeliveryWorker.scheduleWork(context)
-        Log.i("Onboarding", "Work scheduled for daily delivery")
+                            DebugUtils.logInfo("Onboarding", "Work scheduled for daily delivery")
         
         navController.navigate(NavigationConfig.ROUTE_HOME) {
             popUpTo(NavigationConfig.ROUTE_ONBOARDING) { inclusive = true }
         }
-    } catch (e: Exception) {
-        Log.e("Onboarding", "Failed to schedule work", e)
+                    } catch (e: Exception) {
+                    DebugUtils.logError("Onboarding", "Failed to schedule work", e)
         // Still navigate to home even if scheduling fails
         navController.navigate(NavigationConfig.ROUTE_HOME) {
             popUpTo(NavigationConfig.ROUTE_ONBOARDING) { inclusive = true }

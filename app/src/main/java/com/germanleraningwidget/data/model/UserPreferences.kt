@@ -1,6 +1,6 @@
 package com.germanleraningwidget.data.model
 
-import android.util.Log
+import com.germanleraningwidget.util.DebugUtils
 import java.util.concurrent.ConcurrentHashMap
 
 
@@ -71,9 +71,21 @@ data class UserPreferences(
     // BACKWARD COMPATIBILITY PROPERTIES
     /**
      * Backward compatibility property - returns primary level as single string
-     * @deprecated Use selectedGermanLevels instead
+     * 
+     * ⚠️ DEPRECATED: Use selectedGermanLevels and primaryGermanLevel instead for multi-level support
+     * 
+     * Migration Guide:
+     * - Replace: userPreferences.germanLevel
+     * - With: userPreferences.primaryGermanLevel
+     * - Or for multiple levels: userPreferences.selectedGermanLevels
+     * 
+     * @deprecated Use selectedGermanLevels and primaryGermanLevel instead
      */
-    @Deprecated("Use selectedGermanLevels and primaryGermanLevel instead")
+    @Deprecated(
+        message = "Use primaryGermanLevel for single level or selectedGermanLevels for multi-level support",
+        replaceWith = ReplaceWith("primaryGermanLevel"),
+        level = DeprecationLevel.WARNING
+    )
     val germanLevel: String get() = primaryGermanLevel
     
     /**
@@ -151,7 +163,7 @@ data class UserPreferences(
             val validLevels = selectedGermanLevels.map { it.trim() }.filter { it.isNotBlank() }.toSet()
             if (validLevels.isEmpty()) {
                 // Only apply A1 fallback in extreme data corruption scenarios
-                Log.w("UserPreferences", "Data corruption: empty levels but withSafeDefaults called. Using A1 fallback.")
+                DebugUtils.logWarning("UserPreferences", "Data corruption: empty levels but withSafeDefaults called. Using A1 fallback.")
                 if (isOnboardingCompleted) setOf("A1") else emptySet()
             } else {
                 validLevels

@@ -1,7 +1,6 @@
 package com.germanleraningwidget.data.repository
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -9,6 +8,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.germanleraningwidget.data.model.GermanLevel
 import com.germanleraningwidget.data.model.GermanSentence
+import com.germanleraningwidget.data.model.UserPreferences
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +24,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
+import com.germanleraningwidget.util.OptimizationUtils
+import com.germanleraningwidget.util.DebugUtils
+import com.germanleraningwidget.util.AppConstants
+import kotlinx.coroutines.withContext
 
 private val Context.bookmarkDataStore: DataStore<Preferences> by preferencesDataStore(name = "bookmarks")
 
@@ -47,7 +51,7 @@ class SentenceRepository private constructor(
     
     companion object {
         private const val TAG = "SentenceRepository"
-        private const val BOOKMARKED_IDS_KEY_NAME = "bookmarked_sentence_ids"
+        private const val BOOKMARKED_IDS_KEY_NAME = AppConstants.BOOKMARKED_IDS_KEY_NAME
         
         @Suppress("StaticFieldLeak") // Safe: Uses application context only, not activity context
         @Volatile
@@ -214,9 +218,9 @@ class SentenceRepository private constructor(
                 val ids = loadBookmarkedIdsFromStorage()
                 _bookmarkedIds.value = ids
                 _lastError.value = null
-                Log.d(TAG, "Initialized with ${ids.size} bookmarked sentences")
+                DebugUtils.logInfo(TAG, "Initialized with ${ids.size} bookmarked sentences")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialize bookmarks", e)
+                DebugUtils.logError(TAG, "Failed to initialize bookmarks", e)
                 _lastError.value = "Failed to load bookmarks: ${e.message}"
                 _bookmarkedIds.value = emptySet()
             }
@@ -230,7 +234,7 @@ class SentenceRepository private constructor(
         return try {
             context.bookmarkDataStore.data
                 .catch { e ->
-                    Log.e(TAG, "Error reading bookmark data", e)
+                    DebugUtils.logError(TAG, "Error reading bookmark data", e)
                     emit(androidx.datastore.preferences.core.emptyPreferences())
                 }
                 .first()
@@ -239,7 +243,7 @@ class SentenceRepository private constructor(
                         ?.mapNotNull { idString ->
                             idString.toLongOrNull().also { id ->
                                 if (id == null) {
-                                    Log.w(TAG, "Invalid bookmark ID format: '$idString'")
+                                    DebugUtils.logWarning(TAG, "Invalid bookmark ID format: '$idString'")
                                 }
                             }
                         }
@@ -247,7 +251,7 @@ class SentenceRepository private constructor(
                         ?: emptySet()
                 }
         } catch (e: Exception) {
-            Log.e(TAG, "Critical error loading bookmarks", e)
+            DebugUtils.logError(TAG, "Critical error loading bookmarks", e)
             emptySet()
         }
     }
@@ -260,9 +264,9 @@ class SentenceRepository private constructor(
             context.bookmarkDataStore.edit { prefs ->
                 prefs[bookmarkedIdsKey] = ids.map { it.toString() }.toSet()
             }
-            Log.d(TAG, "Successfully saved ${ids.size} bookmark IDs")
+            DebugUtils.logInfo(TAG, "Successfully saved ${ids.size} bookmark IDs")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save bookmarks", e)
+            DebugUtils.logError(TAG, "Failed to save bookmarks", e)
             throw RepositoryException("Failed to save bookmarks", e)
         }
     }
@@ -279,7 +283,7 @@ class SentenceRepository private constructor(
                     notifyBookmarksWidget()
                     _lastError.value = null
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to update bookmarks", e)
+                    DebugUtils.logError(TAG, "Failed to update bookmarks", e)
                     _lastError.value = "Failed to update bookmarks: ${e.message}"
                     // Revert state on failure
                     loadBookmarkedIdsFromStorage().let { revertedIds ->
@@ -299,11 +303,11 @@ class SentenceRepository private constructor(
             val bookmarksWidgetClass = Class.forName("com.germanleraningwidget.widget.BookmarksWidget")
             val updateMethod = bookmarksWidgetClass.getMethod("updateAllWidgets", Context::class.java)
             updateMethod.invoke(null, context)
-            Log.d(TAG, "Successfully notified BookmarksWidget")
+            DebugUtils.logInfo(TAG, "Successfully notified BookmarksWidget")
         } catch (e: ClassNotFoundException) {
-            Log.d(TAG, "BookmarksWidget not available - this is normal during testing")
+            DebugUtils.logInfo(TAG, "BookmarksWidget not available - this is normal during testing")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to notify BookmarksWidget", e)
+            DebugUtils.logWarning(TAG, "Failed to notify BookmarksWidget", e)
         }
         
         // Notify Hero BookmarksWidget
@@ -311,333 +315,273 @@ class SentenceRepository private constructor(
             val heroWidgetClass = Class.forName("com.germanleraningwidget.widget.BookmarksHeroWidget")
             val updateMethod = heroWidgetClass.getMethod("updateAllWidgets", Context::class.java)
             updateMethod.invoke(null, context)
-            Log.d(TAG, "Successfully notified BookmarksHeroWidget")
+            DebugUtils.logInfo(TAG, "Successfully notified BookmarksHeroWidget")
         } catch (e: ClassNotFoundException) {
-            Log.d(TAG, "BookmarksHeroWidget not available - this is normal during testing")
+            DebugUtils.logInfo(TAG, "BookmarksHeroWidget not available - this is normal during testing")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to notify BookmarksHeroWidget", e)
+            DebugUtils.logWarning(TAG, "Failed to notify BookmarksHeroWidget", e)
         }
     }
     
     /**
-     * Get a random sentence matching the specified criteria.
-     * Enhanced with improved caching, validation, and performance optimizations.
-     * 
-     * @param level Target German level as String (e.g., "A1", "B2")
-     * @param topics List of allowed topics
-     * @return Random sentence or null if no matches found
+     * Get a random sentence matching the specified criteria with performance monitoring.
      */
-    fun getRandomSentence(level: String, topics: List<String>): GermanSentence? {
-        return getRandomSentenceFromLevels(setOf(level), topics)
-    }
-    
-    /**
-     * Get a random sentence from multiple German levels with weighted selection.
-     * Enhanced with level weighting and smart distribution.
-     * 
-     * @param levels Set of target German levels (e.g., setOf("A1", "B1"))
-     * @param topics List of allowed topics
-     * @param levelWeights Optional weights for each level (default: equal weights)
-     * @return Random sentence or null if no matches found
-     */
-    fun getRandomSentenceFromLevels(
-        levels: Set<String>, 
-        topics: List<String>,
-        levelWeights: Map<String, Float> = emptyMap()
-    ): GermanSentence? {
-        // Input validation with early returns
-        if (levels.isEmpty()) {
-            Log.w(TAG, "No levels provided for sentence retrieval")
-            return null
-        }
-        
-        if (topics.isEmpty()) {
-            Log.w(TAG, "No topics provided for sentence retrieval")
-            return null
-        }
-        
-        // Convert to set for O(1) lookups - use existing set if already a set  
-        @Suppress("UNCHECKED_CAST")
-        val topicsSet = if (topics is Set<*>) topics as Set<String> else topics.toSet()
-        val cacheKey = buildMultiLevelCacheKey(levels, topicsSet, levelWeights)
-        
-        // Try cache first with null safety
-        sentenceCache[cacheKey]?.let { cachedSentences ->
-            if (cachedSentences.isNotEmpty()) {
-                return selectWeightedRandomSentence(cachedSentences, levelWeights)
+    suspend fun getRandomSentence(
+        levels: Set<String>,
+        topics: Set<String>
+    ): GermanSentence? = OptimizationUtils.measureOptimizedOperation(AppConstants.PerformanceOperations.GET_RANDOM_SENTENCE) {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                DebugUtils.logInfo("SentenceRepository", "Getting random sentence for levels: $levels, topics: $topics")
+                
+                val sentences = SAMPLE_SENTENCES.filter { sentence ->
+                    sentence.level in levels && sentence.topic in topics
+                }
+                
+                if (sentences.isEmpty()) {
+                    DebugUtils.logWarning("SentenceRepository", "No sentences found for criteria")
+                    return@withContext null
+                }
+                
+                val randomSentence = sentences.random()
+                DebugUtils.logInfo("SentenceRepository", "Retrieved random sentence: ${randomSentence.id}")
+                randomSentence
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error getting random sentence", e)
+                null
             }
         }
-        
-        // Filter sentences using optimized instance method for multiple levels
-        val filteredSentences = SAMPLE_SENTENCES.filter { sentence ->
-            levels.any { level -> sentence.matchesCriteria(level, topicsSet) }
-        }
-        
-        if (filteredSentences.isEmpty()) {
-            Log.w(TAG, "No sentences found for levels $levels and topics $topicsSet")
-            return null
-        }
-        
-        // Cache results and return weighted random sentence
-        sentenceCache[cacheKey] = filteredSentences
-        Log.d(TAG, "Cached ${filteredSentences.size} sentences for multi-level key: $cacheKey")
-        return selectWeightedRandomSentence(filteredSentences, levelWeights)
     }
     
     /**
-     * Get a random sentence using UserPreferences (supports both single and multi-level).
-     * This is the recommended method for getting sentences based on user settings.
-     * 
-     * @param userPreferences User's learning preferences
-     * @return Random sentence or null if no matches found
+     * Get distributed sentences across levels and topics with performance monitoring.
      */
-    fun getRandomSentenceForUser(userPreferences: com.germanleraningwidget.data.model.UserPreferences): GermanSentence? {
-        // Enhanced logging for debugging widget level issues
-        Log.d(TAG, "Getting sentence for user preferences: levels=${userPreferences.selectedGermanLevels}, primary=${userPreferences.primaryGermanLevel}, topics=${userPreferences.selectedTopics}")
-        
-        // Validate user preferences first
-        if (userPreferences.selectedGermanLevels.isEmpty()) {
-            Log.w(TAG, "No German levels selected in user preferences")
-            return null
+    suspend fun getDistributedSentences(
+        userPreferences: UserPreferences,
+        count: Int
+    ): Map<String, List<GermanSentence>> = OptimizationUtils.measureOptimizedOperation(AppConstants.PerformanceOperations.GET_DISTRIBUTED_SENTENCES) {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                DebugUtils.logInfo("SentenceRepository", "Getting $count distributed sentences")
+                
+                val result = mutableMapOf<String, MutableList<GermanSentence>>()
+                val selectedLevels = userPreferences.selectedGermanLevels.toList()
+                val selectedTopics = userPreferences.selectedTopics.toList()
+                
+                if (selectedLevels.isEmpty() || selectedTopics.isEmpty()) {
+                    return@withContext emptyMap()
+                }
+                
+                val sentencesPerLevel = maxOf(1, count / selectedLevels.size)
+                
+                for (level in selectedLevels) {
+                    val levelSentences = mutableListOf<GermanSentence>()
+                    
+                    for (topic in selectedTopics) {
+                        val topicSentences = SAMPLE_SENTENCES.filter { sentence ->
+                            sentence.level == level && sentence.topic == topic
+                        }
+                        
+                        if (topicSentences.isNotEmpty()) {
+                            val sentencesToAdd = minOf(
+                                sentencesPerLevel / selectedTopics.size + 1,
+                                topicSentences.size
+                            )
+                            levelSentences.addAll(topicSentences.shuffled().take(sentencesToAdd))
+                        }
+                    }
+                    
+                    if (levelSentences.isNotEmpty()) {
+                        result[level] = levelSentences.shuffled().take(sentencesPerLevel).toMutableList()
+                    }
+                }
+                
+                DebugUtils.logInfo("SentenceRepository", "Generated distributed sentences: ${result.values.sumOf { it.size }} total")
+                result
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error getting distributed sentences", e)
+                emptyMap()
+            }
         }
-        
-        if (userPreferences.selectedTopics.isEmpty()) {
-            Log.w(TAG, "No topics selected in user preferences")
-            return null
-        }
-        
-        // Always use multi-level selection - respects user's exact preferences
-        // NO FALLBACKS - only use what the user has explicitly selected
-        val sentence = getRandomSentenceFromLevels(
-            levels = userPreferences.selectedGermanLevels,
-            topics = userPreferences.selectedTopics.toList(),
-            levelWeights = userPreferences.getLevelWeights()
-        )
-        
-        if (sentence != null) {
-            Log.d(TAG, "Found sentence for user preferences: level=${sentence.level}, text='${sentence.germanText}'")
-        } else {
-            Log.w(TAG, "No sentences found matching user preferences: levels=${userPreferences.selectedGermanLevels}, topics=${userPreferences.selectedTopics}")
-        }
-        
-        return sentence
     }
     
     /**
-     * Select a weighted random sentence from filtered results.
-     * Gives preference to sentences from levels with higher weights.
+     * Save a sentence to bookmarks with performance monitoring.
      */
-    private fun selectWeightedRandomSentence(
-        sentences: List<GermanSentence>,
-        levelWeights: Map<String, Float>
-    ): GermanSentence? {
-        if (sentences.isEmpty()) return null
-        if (levelWeights.isEmpty()) return sentences.random()
-        
-        // Create weighted list based on sentence levels
-        val weightedSentences = sentences.flatMap { sentence ->
-            val weight = levelWeights[sentence.level] ?: 1.0f
-            val count = (weight * 10).toInt().coerceAtLeast(1) // Convert weight to count
-            List(count) { sentence }
+    suspend fun saveBookmark(sentence: GermanSentence): Boolean = OptimizationUtils.measureOptimizedOperation(AppConstants.PerformanceOperations.SAVE_BOOKMARK) {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                DebugUtils.logInfo("SentenceRepository", "Saving bookmark for sentence: ${sentence.id}")
+                
+                val bookmarkedSentenceIds = _bookmarkedIds.value.toMutableSet()
+                val wasAdded = bookmarkedSentenceIds.add(sentence.id)
+                
+                if (wasAdded) {
+                    _bookmarkedIds.value = bookmarkedSentenceIds
+                    saveBookmarkedIdsToStorage(bookmarkedSentenceIds)
+                    DebugUtils.logInfo("SentenceRepository", "Bookmark saved successfully")
+                } else {
+                    DebugUtils.logInfo("SentenceRepository", "Sentence already bookmarked")
+                }
+                
+                wasAdded
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error saving bookmark", e)
+                false
+            }
         }
-        
-        return weightedSentences.randomOrNull() ?: sentences.random()
     }
     
     /**
-     * Build cache key for multi-level sentence filtering with optimized string building.
+     * Remove a sentence from bookmarks with performance monitoring.
      */
-    private fun buildMultiLevelCacheKey(
-        levels: Set<String>, 
+    suspend fun removeBookmark(sentenceId: Long): Boolean = OptimizationUtils.measureOptimizedOperation("remove_bookmark") {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                DebugUtils.logInfo("SentenceRepository", "Removing bookmark for sentence: $sentenceId")
+                
+                val bookmarkedSentenceIds = _bookmarkedIds.value.toMutableSet()
+                val wasRemoved = bookmarkedSentenceIds.remove(sentenceId)
+                
+                if (wasRemoved) {
+                    _bookmarkedIds.value = bookmarkedSentenceIds
+                    saveBookmarkedIdsToStorage(bookmarkedSentenceIds)
+                    DebugUtils.logInfo("SentenceRepository", "Bookmark removed successfully")
+                } else {
+                    DebugUtils.logInfo("SentenceRepository", "Sentence was not bookmarked")
+                }
+                
+                wasRemoved
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error removing bookmark", e)
+                false
+            }
+        }
+    }
+    
+    /**
+     * Generate daily sentence pool with performance monitoring and optimization.
+     */
+    suspend fun generateDailyPool(
+        levels: Set<String>,
         topics: Set<String>,
-        levelWeights: Map<String, Float>
-    ): String {
-        return buildString {
-            append("multi_")
-            levels.sorted().joinTo(this, ",")
-            append('_')
-            topics.sorted().joinTo(this, ",")
-            
-            // Include weights in cache key if they're not default
-            if (levelWeights.isNotEmpty()) {
-                append("_weights_")
-                levelWeights.toSortedMap().entries.joinTo(this, ",") { "${it.key}:${it.value}" }
-            }
-        }
-    }
-    
-    /**
-     * Build cache key for sentence filtering with optimized string building.
-     * LEGACY METHOD - kept for backward compatibility
-     */
-    private fun buildCacheKey(level: String, topics: Set<String>): String {
-        return buildString {
-            append(level)
-            append('_')
-            topics.sorted().joinTo(this, "_")
-        }
-    }
-    
-    /**
-     * Get sentences distributed across multiple levels based on user preferences.
-     * Returns a map of level -> list of sentences for that level.
-     * 
-     * @param userPreferences User's learning preferences
-     * @param count Total number of sentences to retrieve
-     * @return Map of level to sentences for that level
-     */
-    fun getDistributedSentences(
-        userPreferences: com.germanleraningwidget.data.model.UserPreferences,
-        count: Int = userPreferences.recommendedDailySentences
-    ): Map<String, List<GermanSentence>> {
-        val distribution = userPreferences.getSentenceDistribution(count)
-        val topicsSet = userPreferences.selectedTopics
-        
-        return distribution.mapValues { (level, targetCount) ->
-            val filteredSentences = SAMPLE_SENTENCES.filter { sentence ->
-                sentence.matchesCriteria(level, topicsSet)
-            }
-            
-            if (filteredSentences.isEmpty()) {
+        poolSize: Int
+    ): List<GermanSentence> = OptimizationUtils.measureOptimizedOperation("generate_daily_pool") {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                DebugUtils.logInfo("SentenceRepository", "Generating daily pool: $poolSize sentences")
+                
+                // Get eligible sentences
+                val eligibleSentences = SAMPLE_SENTENCES.filter { sentence ->
+                    sentence.level in levels && sentence.topic in topics
+                }
+                
+                if (eligibleSentences.isEmpty()) {
+                    DebugUtils.logWarning("SentenceRepository", "No eligible sentences for daily pool")
+                    return@withContext emptyList()
+                }
+                
+                // Create balanced distribution
+                val poolSentences = if (eligibleSentences.size <= poolSize) {
+                    eligibleSentences.shuffled()
+                } else {
+                    // Distribute across levels and topics
+                    val sentencesPerLevel = poolSize / levels.size
+                    val remainingSentences = poolSize % levels.size
+                    val result = mutableListOf<GermanSentence>()
+                    
+                    levels.forEachIndexed { index, level ->
+                        val levelSentences = eligibleSentences.filter { it.level == level }
+                        val countForLevel = sentencesPerLevel + if (index < remainingSentences) 1 else 0
+                        result.addAll(levelSentences.shuffled().take(countForLevel))
+                    }
+                    
+                    result.shuffled()
+                }
+                
+                // Store in preferences
+                storeDailyPool(poolSentences)
+                
+                DebugUtils.logInfo("SentenceRepository", "Generated daily pool with ${poolSentences.size} sentences")
+                poolSentences
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error generating daily pool", e)
                 emptyList()
-            } else {
-                // Get random sentences up to target count, allowing duplicates if needed
-                (1..targetCount).map { filteredSentences.random() }
             }
         }
     }
     
     /**
-     * Get learning statistics for user's selected levels.
-     * Provides insights into available content across levels.
-     * 
-     * @param userPreferences User's learning preferences
-     * @return Statistics about available sentences per level
+     * Check if daily pool needs regeneration with performance monitoring.
      */
-    fun getLearningStatistics(
-        userPreferences: com.germanleraningwidget.data.model.UserPreferences
-    ): LearningStatistics {
-        val topicsSet = userPreferences.selectedTopics
-        
-        val levelStats = userPreferences.selectedGermanLevels.associateWith { level ->
-            val availableSentences = SAMPLE_SENTENCES.count { sentence ->
-                sentence.matchesCriteria(level, topicsSet)
+    suspend fun shouldRegenerateDailyPool(): Boolean = OptimizationUtils.measureOptimizedOperation("check_pool_regeneration") {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                val today = getCurrentDateString()
+                val lastPoolDate = getLastPoolDate()
+                val shouldRegenerate = lastPoolDate != today
+                
+                DebugUtils.logInfo("SentenceRepository", "Pool regeneration check: today=$today, lastPool=$lastPoolDate, shouldRegenerate=$shouldRegenerate")
+                shouldRegenerate
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error checking pool regeneration", e)
+                true // Default to regeneration on error
             }
-            
-            val topicBreakdown = topicsSet.associateWith { topic ->
-                SAMPLE_SENTENCES.count { sentence ->
-                    sentence.level == level && sentence.topic in topicsSet
+        }
+    }
+    
+    /**
+     * Get next sentence from daily pool with performance monitoring.
+     */
+    suspend fun getNextSentenceFromDailyPool(): GermanSentence? = OptimizationUtils.measureOptimizedOperation("get_next_pool_sentence") {
+        return@measureOptimizedOperation withContext(Dispatchers.IO) {
+            try {
+                val dailyPool = getDailyPool()
+                if (dailyPool.isEmpty()) {
+                    DebugUtils.logWarning("SentenceRepository", "Daily pool is empty")
+                    return@withContext null
                 }
+                
+                val currentIndex = getCurrentPoolIndex()
+                val nextIndex = currentIndex % dailyPool.size
+                val sentence = dailyPool[nextIndex]
+                
+                // Update index for next call
+                updateCurrentPoolIndex((nextIndex + 1) % dailyPool.size)
+                
+                DebugUtils.logInfo("SentenceRepository", "Retrieved sentence ${nextIndex + 1}/${dailyPool.size} from daily pool")
+                sentence
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error getting next pool sentence", e)
+                null
             }
-            
-            LevelStatistics(
-                level = level,
-                availableSentences = availableSentences,
-                topicBreakdown = topicBreakdown
-            )
         }
-        
-        return LearningStatistics(
-            totalSentences = SAMPLE_SENTENCES.size,
-            selectedLevels = userPreferences.selectedGermanLevels,
-            selectedTopics = userPreferences.selectedTopics,
-            levelStatistics = levelStats,
-            recommendedDaily = userPreferences.recommendedDailySentences
-        )
     }
     
     /**
-     * Save a sentence to bookmarks.
-     * Thread-safe operation with proper error handling.
+     * Clear daily pool for cleanup with performance monitoring.
      */
-    fun saveSentence(sentence: GermanSentence) {
-        val currentIds = _bookmarkedIds.value
-        if (currentIds.contains(sentence.id)) {
-            Log.d(TAG, "Sentence ${sentence.id} already bookmarked")
-            return
-        }
-        
-        val newIds = currentIds + sentence.id
-        updateBookmarksAsync(newIds)
-        Log.d(TAG, "Bookmarked sentence: ${sentence.id}")
-    }
-    
-    /**
-     * Check if a sentence is bookmarked.
-     * Thread-safe read operation.
-     */
-    fun isSentenceSaved(sentenceId: Long): Boolean {
-        return _bookmarkedIds.value.contains(sentenceId)
-    }
-    
-    /**
-     * Toggle bookmark status of a sentence.
-     * Thread-safe operation with atomic state changes.
-     * 
-     * @param sentence The sentence to toggle
-     * @return true if sentence is now bookmarked, false if unbookmarked
-     */
-    fun toggleSaveSentence(sentence: GermanSentence): Boolean {
-        val currentIds = _bookmarkedIds.value
-        val isCurrentlySaved = currentIds.contains(sentence.id)
-        
-        val newIds = if (isCurrentlySaved) {
-            currentIds - sentence.id
-        } else {
-            currentIds + sentence.id
-        }
-        
-        updateBookmarksAsync(newIds)
-        
-        val action = if (isCurrentlySaved) "Removed" else "Added"
-        Log.d(TAG, "$action sentence ${sentence.id} ${if (isCurrentlySaved) "from" else "to"} bookmarks")
-        
-        return !isCurrentlySaved
-    }
-    
-    /**
-     * Get reactive flow of bookmarked sentence IDs.
-     */
-    fun getSavedSentenceIds(): StateFlow<Set<Long>> = bookmarkedIds
-    
-    /**
-     * Get all bookmarked sentences.
-     * Returns a snapshot of current bookmarked sentences.
-     * This method is guaranteed to never return null.
-     */
-    fun getSavedSentences(): List<GermanSentence> {
-        return try {
-            val savedIds = _bookmarkedIds.value ?: emptySet()
-            SAMPLE_SENTENCES.filter { sentence ->
-                try {
-                    sentence.id in savedIds
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error checking if sentence ${sentence.id} is saved", e)
-                    false
-                }
+    suspend fun clearDailyPool() = OptimizationUtils.measureOptimizedOperation("clear_daily_pool") {
+        withContext(Dispatchers.IO) {
+            try {
+                DebugUtils.logInfo("SentenceRepository", "Clearing daily pool")
+                
+                val prefs = context.getSharedPreferences("daily_sentence_pool", Context.MODE_PRIVATE)
+                prefs.edit().clear().apply()
+                
+                DebugUtils.logInfo("SentenceRepository", "Daily pool cleared successfully")
+                
+            } catch (e: Exception) {
+                DebugUtils.logError("SentenceRepository", "Error clearing daily pool", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting saved sentences", e)
-            emptyList()
         }
-    }
-    
-    /**
-     * Get bookmarked sentences as a reactive Flow.
-     */
-    fun getSavedSentencesFlow(): Flow<List<GermanSentence>> {
-        return bookmarkedIds.map { savedIds ->
-            SAMPLE_SENTENCES.filter { it.id in savedIds }
-        }
-    }
-    
-    /**
-     * Clear sentence cache.
-     * Useful when sentence data is updated or memory needs to be freed.
-     */
-    fun clearCache() {
-        sentenceCache.clear()
-        Log.d(TAG, "Sentence cache cleared")
     }
     
     /**
@@ -664,7 +608,7 @@ class SentenceRepository private constructor(
                 val invalidBookmarks = currentBookmarks - validSentenceIds
                 
                 if (invalidBookmarks.isNotEmpty()) {
-                    Log.w(TAG, "Found ${invalidBookmarks.size} invalid bookmarks, cleaning up")
+                    DebugUtils.logWarning(TAG, "Found ${invalidBookmarks.size} invalid bookmarks, cleaning up")
                     val cleanedBookmarks = currentBookmarks - invalidBookmarks
                     _bookmarkedIds.value = cleanedBookmarks
                     saveBookmarkedIdsToStorage(cleanedBookmarks)
@@ -675,7 +619,7 @@ class SentenceRepository private constructor(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Integrity validation failed", e)
+            DebugUtils.logError(TAG, "Integrity validation failed", e)
             ValidationResult.Error("Validation failed: ${e.message}")
         }
     }
@@ -720,5 +664,132 @@ class SentenceRepository private constructor(
         val coveragePercentage: Float = if (totalSentences > 0) {
             (totalAvailableForUser.toFloat() / totalSentences) * 100f
         } else 0f
+    }
+    
+    // Daily pool management helper methods
+    
+    /**
+     * Store daily pool sentences in shared preferences
+     */
+    private fun storeDailyPool(sentences: List<GermanSentence>) {
+        val prefs = context.getSharedPreferences("daily_sentence_pool", Context.MODE_PRIVATE)
+        val today = getCurrentDateString()
+        
+        prefs.edit().apply {
+            putString("daily_pool_date", today)
+            putInt("pool_size", sentences.size)
+            putInt("current_index", 0)
+            
+            sentences.forEachIndexed { index, sentence ->
+                putLong("sentence_$index", sentence.id)
+            }
+            
+            apply()
+        }
+    }
+    
+    /**
+     * Get daily pool sentences from shared preferences
+     */
+    private fun getDailyPool(): List<GermanSentence> {
+        val prefs = context.getSharedPreferences("daily_sentence_pool", Context.MODE_PRIVATE)
+        val poolSize = prefs.getInt("pool_size", 0)
+        
+        if (poolSize == 0) return emptyList()
+        
+        val sentences = mutableListOf<GermanSentence>()
+        for (i in 0 until poolSize) {
+            val sentenceId = prefs.getLong("sentence_$i", -1L)
+            if (sentenceId != -1L) {
+                val sentence = getSentenceById(sentenceId)
+                if (sentence != null) {
+                    sentences.add(sentence)
+                }
+            }
+        }
+        
+        return sentences
+    }
+    
+    /**
+     * Get current pool index
+     */
+    private fun getCurrentPoolIndex(): Int {
+        val prefs = context.getSharedPreferences("daily_sentence_pool", Context.MODE_PRIVATE)
+        return prefs.getInt("current_index", 0)
+    }
+    
+    /**
+     * Update current pool index
+     */
+    private fun updateCurrentPoolIndex(newIndex: Int) {
+        val prefs = context.getSharedPreferences("daily_sentence_pool", Context.MODE_PRIVATE)
+        prefs.edit().putInt("current_index", newIndex).apply()
+    }
+    
+    /**
+     * Get last pool generation date
+     */
+    private fun getLastPoolDate(): String {
+        val prefs = context.getSharedPreferences("daily_sentence_pool", Context.MODE_PRIVATE)
+        return prefs.getString("daily_pool_date", "") ?: ""
+    }
+    
+    /**
+     * Get current date as string for daily pool management
+     */
+    private fun getCurrentDateString(): String {
+        val calendar = java.util.Calendar.getInstance()
+        return "${calendar.get(java.util.Calendar.YEAR)}-${calendar.get(java.util.Calendar.MONTH) + 1}-${calendar.get(java.util.Calendar.DAY_OF_MONTH)}"
+    }
+    
+    /**
+     * Get a sentence by its ID.
+     */
+    fun getSentenceById(sentenceId: Long): GermanSentence? {
+        return SAMPLE_SENTENCES.find { it.id == sentenceId }
+    }
+    
+    /**
+     * Get a Flow of bookmarked sentence IDs for reactive UI updates.
+     */
+    fun getSavedSentenceIds(): Flow<Set<Long>> = bookmarkedIds
+    
+    /**
+     * Get a list of saved sentences synchronously.
+     */
+    fun getSavedSentences(): List<GermanSentence> {
+        val savedIds = _bookmarkedIds.value
+        return SAMPLE_SENTENCES.filter { sentence -> sentence.id in savedIds }
+    }
+    
+    /**
+     * Toggle the bookmark status of a sentence.
+     */
+    suspend fun toggleSaveSentence(sentence: GermanSentence): Boolean {
+        val isCurrentlySaved = _bookmarkedIds.value.contains(sentence.id)
+        
+        return if (isCurrentlySaved) {
+            removeBookmark(sentence.id)
+        } else {
+            saveBookmark(sentence)
+        }
+    }
+    
+    /**
+     * Check if a sentence is currently saved/bookmarked.
+     */
+    fun isSentenceSaved(sentenceId: Long): Boolean {
+        return _bookmarkedIds.value.contains(sentenceId)
+    }
+    
+    /**
+     * Get a random sentence from the specified levels and topics.
+     */
+    suspend fun getRandomSentenceFromLevels(
+        levels: Set<String>,
+        topics: Set<String>
+    ): GermanSentence? {
+        return getRandomSentence(levels, topics)
     }
 } 

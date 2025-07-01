@@ -372,4 +372,21 @@ object AppLogger {
         val errorRate: Float = if (totalLogs > 0) totalErrors.toFloat() / totalLogs else 0f
         val warningRate: Float = if (totalLogs > 0) totalWarnings.toFloat() / totalLogs else 0f
     }
+
+    // Static-like methods for easy access from anywhere
+    fun logInfo(tag: String, message: String) {
+        i(Category.UI, tag, message)
+    }
+    
+    fun logError(tag: String, message: String, throwable: Throwable? = null) {
+        e(Category.ERROR, tag, message, throwable)
+    }
+    
+    fun logWarning(tag: String, message: String) {
+        w(Category.UI, tag, message)
+    }
+    
+    fun logDebug(tag: String, message: String) {
+        d(Category.UI, tag, message)
+    }
 } 

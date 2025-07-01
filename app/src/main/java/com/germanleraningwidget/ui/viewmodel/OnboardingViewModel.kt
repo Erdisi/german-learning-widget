@@ -118,9 +118,21 @@ class OnboardingViewModel(
     
     /**
      * Update selected German level - LEGACY METHOD for backward compatibility
+     * 
+     * ⚠️ DEPRECATED: Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead for multi-level support
+     * 
+     * Migration Guide:
+     * - Replace: viewModel.updateGermanLevel(level)
+     * - With: viewModel.updateSelectedGermanLevels(setOf(level)) + viewModel.updatePrimaryGermanLevel(level)
+     * - Or use: viewModel.updateSelectedGermanLevels(levels) for multiple levels
+     * 
      * @deprecated Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead
      */
-    @Deprecated("Use updateSelectedGermanLevels and updatePrimaryGermanLevel instead")
+    @Deprecated(
+        message = "Use updateSelectedGermanLevels and updatePrimaryGermanLevel for multi-level support",
+        replaceWith = ReplaceWith("updateSelectedGermanLevels(setOf(level)); updatePrimaryGermanLevel(level)"),
+        level = DeprecationLevel.WARNING
+    )
     fun updateGermanLevel(level: String) {
         _uiState.value = _uiState.value.copy(
             selectedGermanLevels = setOf(level),
@@ -443,7 +455,23 @@ data class OnboardingUiState(
     val isOnboardingCompleted: Boolean = false
 ) {
     // Backward compatibility property
-    @Deprecated("Use selectedGermanLevels and primaryGermanLevel instead")
+    /**
+     * Backward compatibility property for single level selection
+     * 
+     * ⚠️ DEPRECATED: Use selectedGermanLevels and primaryGermanLevel instead for multi-level support
+     * 
+     * Migration Guide:
+     * - Replace: uiState.selectedLevel
+     * - With: uiState.primaryGermanLevel
+     * - Or for multiple levels: uiState.selectedGermanLevels
+     * 
+     * @deprecated Use selectedGermanLevels and primaryGermanLevel instead
+     */
+    @Deprecated(
+        message = "Use primaryGermanLevel for single level or selectedGermanLevels for multi-level support",
+        replaceWith = ReplaceWith("primaryGermanLevel"),
+        level = DeprecationLevel.WARNING
+    )
     val selectedLevel: String get() = primaryGermanLevel
     
     /**
