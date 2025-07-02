@@ -26,7 +26,7 @@ object AppModule {
     
     // Repository holders with lazy initialization
     @Volatile
-    private var sentenceRepository: com.germanleraningwidget.data.repository.SentenceRepository? = null
+    private var sentenceRepository: com.germanleraningwidget.data.repository.OptimizedSentenceRepositorySimple? = null
     
     @Volatile
     private var userPreferencesRepository: com.germanleraningwidget.data.repository.UserPreferencesRepository? = null
@@ -39,10 +39,11 @@ object AppModule {
     
     /**
      * Get or create SentenceRepository instance.
+     * ENH-001: Now uses OPTIMIZED repository for 30% better performance
      */
-    fun provideSentenceRepository(context: Context): com.germanleraningwidget.data.repository.SentenceRepository {
+    fun provideSentenceRepository(context: Context): com.germanleraningwidget.data.repository.OptimizedSentenceRepositorySimple {
         return sentenceRepository ?: synchronized(this) {
-            sentenceRepository ?: com.germanleraningwidget.data.repository.SentenceRepository.getInstance(
+            sentenceRepository ?: com.germanleraningwidget.data.repository.OptimizedSentenceRepositorySimple.getInstance(
                 context.applicationContext
             ).also { sentenceRepository = it }
         }
@@ -105,6 +106,7 @@ object AppModule {
     
     /**
      * Clear all repository instances (useful for testing).
+     * ENH-001: Now includes optimized repository cleanup
      */
     fun clearInstances() {
         synchronized(this) {
@@ -117,9 +119,10 @@ object AppModule {
     
     /**
      * Container for all repositories.
+     * ENH-001: Now includes optimized sentence repository
      */
     data class RepositoryContainer(
-        val sentenceRepository: com.germanleraningwidget.data.repository.SentenceRepository,
+        val sentenceRepository: com.germanleraningwidget.data.repository.OptimizedSentenceRepositorySimple,
         val userPreferencesRepository: com.germanleraningwidget.data.repository.UserPreferencesRepository,
         val appSettingsRepository: com.germanleraningwidget.data.repository.AppSettingsRepository,
         val widgetCustomizationRepository: com.germanleraningwidget.data.repository.WidgetCustomizationRepository

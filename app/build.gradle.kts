@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // kotlin("kapt") // Required for Room annotation processing - Temporarily disabled
 }
 
 android {
@@ -131,6 +132,11 @@ dependencies {
     
     // Splash Screen
     implementation(libs.androidx.core.splashscreen)
+    
+    // Room Database (ENH-001: Database Architecture Migration) - Temporarily disabled for compatibility
+    // implementation("androidx.room:room-runtime:2.5.2")
+    // implementation("androidx.room:room-ktx:2.5.2")
+    // kapt("androidx.room:room-compiler:2.5.2")
     
     // Core library desugaring for API level compatibility
     coreLibraryDesugaring(libs.desugar.jdk.libs)

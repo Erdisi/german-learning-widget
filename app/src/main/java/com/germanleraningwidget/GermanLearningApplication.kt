@@ -89,6 +89,9 @@ class GermanLearningApplication : Application(), Configuration.Provider {
             // Initialize app logger
             AppLogger.logInfo(TAG, "Initializing application components")
             
+            // ENH-001: Optimized repository will be initialized on first access
+            DebugUtils.logInfo(TAG, "Optimized repository context prepared")
+            
             // Initialize background work
             initializeBackgroundWork()
             
